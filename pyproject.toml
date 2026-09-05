@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "serum-render-gui"
+version = "0.1.0"
+description = "Desktop front end for serum-render: batch-render Serum 1 and Serum 2 presets to audio."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = "GPL-3.0-or-later"
+keywords = ["serum", "serum2", "vst", "preset", "render", "audio", "gui", "qt"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Environment :: X11 Applications :: Qt",
+]
+dependencies = [
+    # PySide6-Essentials, not PySide6: the meta-package also pulls
+    # PySide6-Addons (a 317MB macOS wheel) for modules this app never imports.
+    "PySide6-Essentials",
+    # Upper bound is load-bearing. serum-render's --json shape is unstable
+    # until 1.0, so an unbounded floor lets an upgrade break the GUI with no
+    # resolver signal.
+    "serum-render>=0.3.1,<0.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/wiillownet/serum-render-gui"
+Repository = "https://github.com/wiillownet/serum-render-gui"
+Issues = "https://github.com/wiillownet/serum-render-gui/issues"
+
+[project.scripts]
+serum-render-gui = "serum_render_gui.main:main"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+# Machine-wide git excludes are not read by hatchling,
+# which hatchling does not read — it only honors the project's own .gitignore.
+# Without this they get swept into the sdist from the working directory.
+[tool.hatch.build.targets.sdist]
+exclude = ["docs/design"]

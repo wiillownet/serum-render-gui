@@ -1,0 +1,26 @@
+# Base .gitignore — copy to a new repo as `.gitignore`, then add project-specific entries.
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Node
+node_modules/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Local env / secrets
+.env
+.env.local
