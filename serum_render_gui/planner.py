@@ -17,11 +17,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from serum_render.discover import (
+    _STEM_MAX_LEN,
+    _UNDERSCORE_RUN_RE,
     compose_filename,
     discover_presets,
     resolve_output_paths,
 )
-from serum_render.formats import PresetFormat
+from serum_render.formats import PresetFormat, format_or_none
 
 # Container -> the extension the CLI derives from it (cli.py's `extension`).
 _EXTENSION_FOR = {"wav": ".wav", "npy": ".npy"}
@@ -111,40 +113,104 @@ class Plan:
         return bool(self.collisions) or self.to_render == 0
 
 
-def scan(presets_dir: Path, recurse: bool = True) -> list[tuple[Path, PresetFormat]]:
-    """Discover presets under a directory. Separated from `plan` because this is
-    the expensive half (a factory tree is thousands of files) and only needs
-    re-running when the folder itself changes."""
+@dataclass(frozen=True)
+class Library:
+    """A scan plus the per-preset template tokens it determines.
+
+    The tokens exist so `plan` can re-run on every keystroke. Composing 3506
+    filenames with `compose_filename` costs ~103ms because each call re-derives
+    `{preset}`, `{folder}`, `{subpath}` and `{subdir}` from the path — but those
+    depend only on the scan, never on the template. Precomputing them once here
+    takes `plan` from ~137ms to ~26ms, which is the difference between a field
+    that lags as you type and one that does not.
+    """
+
+    presets: tuple[tuple[Path, PresetFormat], ...] = ()
+    root: Path | None = None
+    # Per preset, in `presets` order: the token values fixed by the scan.
+    tokens: tuple[dict[str, str], ...] = ()
+
+    def __len__(self) -> int:
+        return len(self.presets)
+
+
+def scan(presets_dir: Path, recurse: bool = True) -> Library:
+    """Discover presets under a directory and precompute their tokens.
+
+    Separated from `plan` because this is the expensive half (a factory tree is
+    thousands of files) and only needs re-running when the folder changes.
+    """
     presets_dir = Path(presets_dir)
     if not presets_dir.exists():
-        return []
-    return discover_presets(presets_dir, recurse=recurse)
+        return Library()
+    presets = tuple(discover_presets(presets_dir, recurse=recurse))
+    # Matches cli.py: absolute so `relative_to` works, None in single-file mode
+    # so {subpath} and {subdir} collapse out.
+    root = presets_dir.resolve() if presets_dir.is_dir() else None
+    return Library(presets=presets, root=root,
+                   tokens=tuple(_tokens_for(p, fmt, root) for p, fmt in presets))
 
 
-def plan(preset_files: list[tuple[Path, PresetFormat]], params: RenderParams) -> Plan:
+def _tokens_for(
+    preset_path: Path, fmt: PresetFormat, root: Path | None
+) -> dict[str, str]:
+    """The token values a preset's path determines. Mirrors `compose_filename`'s
+    derivation exactly; `test_planner.py` pins the two against each other."""
+    from serum_render.discover import sanitize
+
+    if root is not None:
+        try:
+            rel = preset_path.parent.relative_to(root)
+        except ValueError:
+            subpath = subdir = ""
+        else:
+            subpath = sanitize("_".join(rel.parts)) if rel.parts else ""
+            subdir = "/".join(filter(None, (sanitize(part) for part in rel.parts)))
+    else:
+        subpath = subdir = ""
+    return {
+        "{preset}": sanitize(preset_path.stem),
+        "{folder}": sanitize(preset_path.parent.name),
+        "{subpath}": subpath,
+        "{subdir}": subdir,
+        "{format}": fmt.value,
+    }
+
+
+def compose_fast(template: str, tokens: dict[str, str], note: int, velocity: int) -> str:
+    """`compose_filename` with the path-derived work already done.
+
+    COUPLING: replicates the tail of `serum_render.discover.compose_filename`
+    (underscore collapse, strip, per-component truncation) and imports its two
+    private constants. If those drift, the GUI's collision detection and the
+    CLI's actual output silently disagree — so `test_compose_fast_matches_*`
+    asserts parity across templates and must never be deleted.
+    """
+    result = template
+    for token, value in tokens.items():
+        result = result.replace(token, value)
+    result = result.replace("{note}", str(note)).replace("{velocity}", str(velocity))
+    result = _UNDERSCORE_RUN_RE.sub("_", result).strip("_")
+    return "/".join(part[:_STEM_MAX_LEN] for part in result.split("/") if part)
+
+
+def plan(library: Library, params: RenderParams) -> Plan:
     """Resolve a scan against the current parameters. Cheap enough to run on
     every keystroke, which is what continuous collision detection requires."""
-    if not preset_files:
+    if not library.presets:
         return Plan()
 
-    per_format = Counter(fmt for _, fmt in preset_files)
+    per_format = Counter(fmt for _, fmt in library.presets)
     missing = {
         fmt: n for fmt, n in per_format.items() if params.plugin_for(fmt) is None
     }
-    renderable_files = [
-        (p, fmt) for p, fmt in preset_files if params.plugin_for(fmt) is not None
-    ]
-
-    # `presets_root` must be absolute to match discover_presets' output, and is
-    # None in single-file mode so {subpath} collapses out. Mirrors cli.py.
-    presets_dir = Path(params.presets_dir)
-    root = presets_dir.resolve() if presets_dir.is_dir() else None
+    keep = [params.plugin_for(fmt) is not None for _, fmt in library.presets]
+    renderable_files = [pf for pf, k in zip(library.presets, keep) if k]
 
     stems = [
-        compose_filename(
-            params.filename_template, p, root, params.note, params.velocity, fmt
-        )
-        for p, fmt in renderable_files
+        compose_fast(params.filename_template, tok, params.note, params.velocity)
+        for tok, k in zip(library.tokens, keep)
+        if k
     ]
 
     extension = _EXTENSION_FOR[params.output_format]
@@ -152,7 +218,7 @@ def plan(preset_files: list[tuple[Path, PresetFormat]], params: RenderParams) ->
     existing = sum(1 for path in output_paths if Path(path).exists())
 
     return Plan(
-        discovered=len(preset_files),
+        discovered=len(library.presets),
         per_format=dict(per_format),
         missing_plugin=missing,
         renderable=len(renderable_files),

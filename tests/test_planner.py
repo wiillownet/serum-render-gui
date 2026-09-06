@@ -6,7 +6,14 @@ from pathlib import Path
 import pytest
 
 from serum_render.formats import PresetFormat
-from serum_render_gui.planner import RenderParams, build_argv, plan, scan
+from serum_render_gui.planner import (
+    Library,
+    RenderParams,
+    build_argv,
+    compose_fast,
+    plan,
+    scan,
+)
 
 
 def _touch(p: Path) -> None:
@@ -89,7 +96,7 @@ def test_argv_automatic_workers_becomes_the_cli_sentinel(params):
 
 
 def test_scan_of_a_missing_directory_is_empty(tmp_path):
-    assert scan(tmp_path / "nope") == []
+    assert len(scan(tmp_path / "nope")) == 0
 
 
 def test_plan_counts_each_format(params):
@@ -116,7 +123,7 @@ def test_plan_filters_presets_whose_plugin_is_absent(params):
 
 
 def test_empty_scan_plans_to_nothing(params):
-    result = plan([], params)
+    result = plan(Library(), params)
     assert result.discovered == 0 and result.to_render == 0
     assert result.blocked  # a batch of zero would show 0/0 and finish instantly
 
@@ -226,3 +233,55 @@ def test_the_default_template_is_collision_free_on_a_nested_tree(params):
     result = plan(scan(params.presets_dir), params)
     assert result.collisions == ()
     assert not result.blocked
+
+
+# ---- compose_fast parity ---------------------------------------------------
+#
+# compose_fast replicates the tail of serum_render.discover.compose_filename and
+# imports two of its private constants, so the two can drift silently and take
+# collision detection with them. These pin them together. Do not delete.
+
+
+@pytest.mark.parametrize("template", [
+    "{preset}",
+    "{subdir}/{preset}",
+    "{format}/{subdir}/{preset}",
+    "{subpath}_{preset}",
+    "{folder}/{preset}_{note}_{velocity}",
+    "{format}/{subpath}_{preset}_{note}",
+    "{preset}",           # no tokens that vary
+    "static",             # no tokens at all
+])
+def test_compose_fast_matches_compose_filename(tmp_path, template):
+    from serum_render.discover import compose_filename
+    from serum_render_gui.planner import _tokens_for
+
+    root = tmp_path / "presets"
+    paths = [
+        root / "a.fxp",
+        root / "Bass" / "Deep Sub 01.fxp",
+        root / "Bass" / "nested" / "Wide  Detune!!.SerumPreset",
+        root / "!!!.fxp",
+    ]
+    for p in paths:
+        _touch(p)
+    for path, fmt in ((paths[0], PresetFormat.SERUM1),
+                      (paths[1], PresetFormat.SERUM1),
+                      (paths[2], PresetFormat.SERUM2),
+                      (paths[3], PresetFormat.SERUM1)):
+        slow = compose_filename(template, path, root, 48, 127, fmt)
+        fast = compose_fast(template, _tokens_for(path, fmt, root), 48, 127)
+        assert fast == slow, f"{template!r} on {path.name}: {fast!r} != {slow!r}"
+
+
+def test_compose_fast_matches_in_single_file_mode(tmp_path):
+    """root=None collapses {subdir}/{subpath}, and the empty component is
+    dropped — the divergence that makes per-file retry write to the wrong path."""
+    from serum_render.discover import compose_filename
+    from serum_render_gui.planner import _tokens_for
+
+    path = tmp_path / "Bass" / "x.fxp"
+    _touch(path)
+    slow = compose_filename("{subdir}/{preset}", path, None, 48, 127, PresetFormat.SERUM1)
+    fast = compose_fast("{subdir}/{preset}", _tokens_for(path, PresetFormat.SERUM1, None), 48, 127)
+    assert fast == slow == "x"
