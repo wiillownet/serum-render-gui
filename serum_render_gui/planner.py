@@ -104,6 +104,10 @@ class Plan:
     collisions: tuple[Collision, ...] = ()
     existing: int = 0
     to_render: int = 0
+    # Parallel tuples, renderable presets only, in job order. `preset_paths`
+    # are resolved absolute strings, exactly what the CLI's `result` events
+    # report as `path`, so Retry can map a failed preset to the file to delete.
+    preset_paths: tuple[str, ...] = ()
     output_paths: tuple[str, ...] = ()
 
     @property
@@ -229,6 +233,7 @@ def plan(library: Library, params: RenderParams) -> Plan:
             if params.skip_existing
             else len(renderable_files)
         ),
+        preset_paths=tuple(str(p.resolve()) for p, _ in renderable_files),
         output_paths=tuple(output_paths),
     )
 

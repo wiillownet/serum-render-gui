@@ -197,6 +197,18 @@ def test_existing_outputs_are_counted(params):
     assert result.to_render == 2  # skip_existing off: both are re-rendered
 
 
+def test_preset_paths_pair_with_output_paths_as_the_cli_reports_them(params):
+    """Retry deletes a failed preset's output. The CLI reports `path` as
+    `str(p.resolve())`, so the map must be keyed the same way."""
+    _touch(params.presets_dir / "Bass" / "a.fxp")
+    _touch(params.presets_dir / "b.SerumPreset")
+    p = plan(scan(params.presets_dir), params)
+    assert len(p.preset_paths) == len(p.output_paths) == 2
+    pairs = dict(zip(p.preset_paths, p.output_paths))
+    key = str((params.presets_dir / "Bass" / "a.fxp").resolve())
+    assert pairs[key].endswith("Bass/a.wav")
+
+
 def test_skip_existing_shrinks_the_denominator(params):
     _touch(params.presets_dir / "a.fxp")
     _touch(params.presets_dir / "b.fxp")

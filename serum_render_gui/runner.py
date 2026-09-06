@@ -92,6 +92,9 @@ class RenderRunner(QObject):
     result = Signal(dict)
     done = Signal(dict)
     failed = Signal(str)
+    # A user Stop finished tearing the tree down. Carries nothing: the GUI
+    # already has its own tally, and the child never gets to emit `done`.
+    stopped = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -99,6 +102,7 @@ class RenderRunner(QObject):
         self._pgid: int | None = None
         self._stopping = False
         self._saw_done = False
+        self._done_event: dict | None = None
         self._stderr: deque[str] = deque(maxlen=_STDERR_TAIL)
         # The parameters this batch actually ran with. Retry re-submits these
         # rather than re-reading the widgets, which may have changed since.
@@ -115,6 +119,7 @@ class RenderRunner(QObject):
         self._pgid = None
         self._stopping = False
         self._saw_done = False
+        self._done_event = None
         self._stderr.clear()
         self.launched_with = params.as_dict()
 
@@ -177,8 +182,10 @@ class RenderRunner(QObject):
             elif kind == "result":
                 self.result.emit(event)
             elif kind == "done":
+                # Held until the child exits, so `running` is False by the
+                # time a consumer reacts and can start the next batch.
                 self._saw_done = True
-                self.done.emit(event)
+                self._done_event = event
 
     def _on_stderr(self) -> None:
         proc = self._proc
@@ -200,8 +207,11 @@ class RenderRunner(QObject):
 
     def _on_finished(self, exit_code: int, _status: QProcess.ExitStatus) -> None:
         self._proc = None
-        if self._saw_done or self._stopping:
-            # A clean stop reports its own partial counts; `done` already fired.
+        if self._saw_done:
+            self.done.emit(self._done_event or {})
+            return
+        if self._stopping:
+            self.stopped.emit()
             return
         tail = "\n".join(self._stderr)
         if exit_code == 2:

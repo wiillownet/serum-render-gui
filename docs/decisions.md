@@ -93,3 +93,41 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Reason:** there is no case where the GUI wants the other behaviour. The design requires it to render what it can and state the split in the footer, so it must never call the CLI path that refuses a whole mixed library. When no plugin is missing the flag is a no-op; when nothing is renderable the GUI has already disabled Render, so the CLI's exit 2 never fires. It also closes a race: a preset landing in the folder between planning and launching would otherwise abort the entire batch over a file the GUI never saw.
 
 **Alternatives considered:** keeping it as a parameter defaulting to `True` — rejected. A flag that must always be one value is not a parameter, it is a footgun with a default; deleting it makes the mistake unmakeable rather than merely unlikely.
+
+## [2026-09-06] Retry deletes the failed outputs and re-runs the whole batch with `--skip-existing`
+
+**Decision:** Retry unlinks each failed preset's output file (mapped through `Plan.preset_paths` / `Plan.output_paths`, snapshotted at launch), then re-submits the batch's original `RenderParams` with `skip_existing=True`. The footer's denominator is the failure count, and `reason: "exists"` results are not counted.
+
+**Reason:** the design's "re-submit the failed preset list" cannot be built: the CLI takes one path, and single-file mode sets `presets_root=None`, which collapses `{subdir}` and lands `Bass/alpha.wav` at `alpha.wav`, potentially over a different preset's render. Re-running the identical job list keeps every `_N` disambiguation suffix on the same preset. Verified against real renders: a failed preset's stale output survives (most failures raise before `write_audio`), so without the unlink `--skip-existing` would skip exactly the file the user asked to fix. Measured overhead on already-rendered presets is under a second per 1500.
+
+**Alternatives considered:** per-preset CLI invocations (wrong output paths, above); ignoring `--skip-existing` on retry and re-rendering everything (re-renders thousands to fix two).
+
+## [2026-09-06] `done` is emitted from the finished slot, not from the stream
+
+**Decision:** `RenderRunner` holds the `done` event until the child process exits, then emits it. A user Stop emits a new `stopped` signal from the same slot.
+
+**Reason:** the `done` line arrives while loky is still shutting workers down. Emitting on the line let the GUI unlock and accept a Render click while `running` was still true, which raised "A render is already running." Emitting on exit makes "the batch is over" and "the process is gone" the same moment. The stopped signal exists because a kill produces no `done` line and the GUI otherwise never learns the tree is down.
+
+## [2026-09-06] QMainWindow with `setFixedSize` in one method
+
+**Decision:** `MainWindow._fit` is the only place the window is sized: `setFixedSize(640, central.sizeHint().height() + menuBar().sizeHint().height())`, called once at construction and on every section toggle.
+
+**Reason:** the menu bar is needed for the Preferences item (the containing `QMenu` is mandatory for ⌘, on macOS), which rules out the plain-`QWidget` alternative. `setFixedSize` on every toggle is what actually pins both dimensions and disables zoom; `setFixedWidth` alone leaves height draggable. Verified heights on cocoa: 289 collapsed, 445 / 410 / 375 / 375 per section, 738 all open, matching the design table exactly. `tests/test_window.py` pins the deltas. Making the window resizable later is this one method plus a width policy.
+
+## [2026-09-06] Fractional font sizes go on QFont, integer ones in QSS
+
+**Decision:** 9.5 / 10.5 / 11.5px faces are set via `style.sans()` / `style.mono()` (`setPointSizeF`, converted with the screen's logical DPI, which is 72 on macOS so px == pt). The stylesheet sets no `font-size` except the 12px button label and 11px tooltip, so a widget font is never overridden by a selector.
+
+**Reason:** QSS parses fractional px inconsistently, and a QSS `font-size` on a selector silently overrides the QFont set on a matching widget. Keeping the two disjoint is what makes the row heights come out exact.
+
+## [2026-09-06] Collisions dialog lists every collision and scrolls
+
+**Decision:** the table is capped at four visible rows and scrolls; there is no `…N more` overflow row.
+
+**Reason:** the cap already keeps the dialog inside a 289px parent, so listing everything costs nothing and is strictly more useful than a count. `Copy` still puts the full list on the clipboard.
+
+## [2026-09-06] The built-in profile is named "Default"
+
+**Decision:** one built-in, `Default`, whose values are `RenderParams`' defaults.
+
+**Reason:** the earlier decision fixed the values but not the name. "Default" is what the values are; a workflow name ("Quick preview") would claim something the owner has not decided.
