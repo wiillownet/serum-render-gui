@@ -596,8 +596,12 @@ class ProfileManager(_Dialog):
     def _rebuild(self) -> None:
         while self.list_layout.count():
             item = self.list_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            w = item.widget()
+            if w is not None:
+                # Detach now, not on deleteLater: a lingering child keeps
+                # painting at its old spot until the event loop runs.
+                w.setParent(None)
+                w.deleteLater()
         header = QWidget()
         header.setObjectName("listHeader")
         header.setFixedHeight(26)
@@ -612,5 +616,11 @@ class ProfileManager(_Dialog):
             row = _ProfileRow(self, name, self._summary_for(self.store.get(name)))
             row.changed.connect(self._rebuild)
             self.list_layout.addWidget(row)
+        # Layout-added children are shown on the next event pass; an unshown
+        # widget contributes nothing to sizeHint, so fit() would shrink the
+        # dialog under the new rows. Show them now.
+        if self.isVisible():
+            for i in range(self.list_layout.count()):
+                self.list_layout.itemAt(i).widget().show()
         # ponytail: past ~8 profiles this outgrows the parent; add a scroll area then.
         self.fit()

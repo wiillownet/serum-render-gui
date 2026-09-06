@@ -122,3 +122,21 @@ def test_modified_marker_and_revert(app, win):
     assert win.combo.modified and win.sound.dot.isVisible()
     win._revert_all()
     assert not win.combo.modified and win.spins["duration"].value() == 1.0
+
+
+def test_profile_manager_grows_when_a_row_is_added(app, tmp_path):
+    """Layout-added rows are invisible until the event loop runs, so a naive
+    fit() shrank the dialog under them and the rows overlapped."""
+    from serum_render_gui.dialogs import ProfileManager, _ProfileRow
+
+    dlg = ProfileManager(None, ProfileStore(tmp_path / "p.json"), lambda v: "summary")
+    dlg.show()
+    app.processEvents()
+    before = dlg.height()
+    dlg.findChildren(_ProfileRow)[0]._duplicate()
+    app.processEvents()
+    rows = dlg.findChildren(_ProfileRow)
+    assert len(rows) == 2
+    assert dlg.height() > before
+    assert len({r.geometry().y() for r in rows}) == 2
+    dlg.close()
