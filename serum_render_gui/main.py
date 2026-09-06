@@ -431,6 +431,7 @@ class MainWindow(QMainWindow):
 
     def _apply_values(self, v: dict) -> None:
         was = self._loading
+        recurse_changed = bool(v["no_recurse"]) != self.no_recurse.isChecked()
         self._loading = True
         try:
             for k in ("note", "velocity", "duration", "tail"):
@@ -445,7 +446,8 @@ class MainWindow(QMainWindow):
             self.no_recurse.setChecked(bool(v["no_recurse"]))
         finally:
             self._loading = was
-        self._rescan()
+        if recurse_changed:  # the only profile field that changes the scan
+            self._rescan()
         self._changed()
 
     def params(self) -> RenderParams | None:
