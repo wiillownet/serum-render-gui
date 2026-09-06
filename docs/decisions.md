@@ -139,3 +139,9 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Reason:** nothing in the GUI can run after SIGKILL, and loky workers hold both ends of the call queue so they never notice the parent is gone. Verified: SIGKILL of the GUI at 8 of 4271 left nine processes rendering; the next launch removed all of them. The command-line check is what makes a recycled pid safe. The in-child fix (a parent-liveness thread in serum-render's worker initializer) is still the better one and stays an open thread; this is the GUI-side mitigation available today.
 
 **Also fixed here:** `RenderRunner.stop` is idempotent. Closing the window and quitting both call it, and on macOS a second `killpg` on a group that is already exiting raises EPERM (verified), which would surface as a traceback on quit.
+
+## [2026-09-06] Version numbers: SemVer, and the GUI pins serum-render to one minor
+
+**Decision:** serum-render and serum2-preset-loader follow Semantic Versioning. A fix or a performance change with no observable difference is a patch. A new flag, output format, `--json` event, or changed default is a minor. Before 1.0 a minor may also break; `--json` and the flag set freeze at 1.0. This GUI pins `serum-render>=X.Y,<X.(Y+1)` and moves the pin deliberately with each serum-render minor.
+
+**Reason:** the GUI mirrors serum-render's flags and formats in its own tables, so any minor of serum-render can require a GUI change; a pin to one minor makes that a resolver error rather than a silent mismatch. Concretely: the OGG/FLAC formats make serum-render 0.4.0, not 0.3.2, and this GUI moves to `>=0.4,<0.5` in the same change that adds the formats to its combo. The loader's base64 rewrite changed no bytes and no API, so it is 0.1.3.
