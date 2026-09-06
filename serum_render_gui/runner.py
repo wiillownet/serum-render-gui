@@ -89,6 +89,9 @@ class RenderRunner(QObject):
     """One batch. Owns the child process and its lifetime."""
 
     started = Signal(int, int)  # total, workers
+    # The child's pid and process-group id, once known. The GUI records them
+    # so a later launch can reap a tree orphaned by a force-quit.
+    launched = Signal(int, int)  # pid, pgid
     result = Signal(dict)
     done = Signal(dict)
     failed = Signal(str)
@@ -144,7 +147,13 @@ class RenderRunner(QObject):
 
     def stop(self) -> None:
         """Kill the whole process group. Workers are not the direct child, so
-        killing only that strands them rendering to disk unwatched."""
+        killing only that strands them rendering to disk unwatched.
+
+        Idempotent: closing the window and quitting the app both call this,
+        and a second killpg on a group that is already exiting raises EPERM
+        on macOS (verified) rather than ESRCH."""
+        if self._stopping:
+            return
         self._stopping = True
         self._kill_tree()
 
@@ -159,6 +168,7 @@ class RenderRunner(QObject):
             self._pgid = pid if os.getpgid(pid) == pid else None
         except OSError:
             self._pgid = None
+        self.launched.emit(pid, self._pgid or 0)
 
     def _on_stdout(self) -> None:
         proc = self._proc
@@ -239,6 +249,41 @@ class RenderRunner(QObject):
                 check=False,
             )
         elif self._pgid is not None:
-            os.killpg(self._pgid, signal.SIGKILL)
+            try:
+                kill_group(self._pgid)
+            except OSError:
+                proc.kill()
         else:
             proc.kill()
+
+
+def kill_group(pgid: int) -> None:
+    os.killpg(pgid, signal.SIGKILL)
+
+
+def looks_like_render(pid: int) -> bool:
+    """True if `pid` is alive and is a `python -m serum_render` process.
+    Guards the orphan reaper against a recycled pid."""
+    if sys.platform == "win32":
+        cmd = ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"]
+    else:
+        cmd = ["ps", "-o", "command=", "-p", str(pid)]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=False).stdout
+    return "serum_render" in out
+
+
+def reap_orphan(pid: int, pgid: int) -> bool:
+    """Kill a render tree a previous GUI process left behind (it was
+    force-quit, so its own Stop never ran). Returns True if something was
+    killed. Workers hold both ends of loky's queue and never notice the
+    parent is gone, so nothing in the tree exits on its own."""
+    if pid <= 0 or not looks_like_render(pid):
+        return False
+    if sys.platform == "win32":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, check=False)
+        return True
+    try:
+        kill_group(pgid if pgid > 0 else pid)
+    except OSError:
+        return False
+    return True

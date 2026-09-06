@@ -78,3 +78,27 @@ def test_frozen_uses_the_configured_interpreter(monkeypatch):
         "serum_render_gui.runner.BUNDLED_INTERPRETER", "/app/python3"
     )
     assert interpreter() == "/app/python3"
+
+
+# ---- orphan reaper --------------------------------------------------------
+
+
+def test_reaper_refuses_a_pid_that_is_not_a_render(monkeypatch):
+    """A recycled pid must never be killed. This process is a pytest run."""
+    import os
+
+    from serum_render_gui.runner import looks_like_render, reap_orphan
+
+    assert looks_like_render(os.getpid()) is False
+    assert reap_orphan(os.getpid(), os.getpgid(0)) is False
+    assert reap_orphan(0, 0) is False
+
+
+def test_reaper_kills_a_render_group(monkeypatch):
+    killed = []
+    monkeypatch.setattr("serum_render_gui.runner.looks_like_render", lambda pid: True)
+    monkeypatch.setattr("serum_render_gui.runner.kill_group", killed.append)
+    from serum_render_gui.runner import reap_orphan
+
+    assert reap_orphan(1234, 1234) is True
+    assert killed == [1234]

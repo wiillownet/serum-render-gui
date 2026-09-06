@@ -131,3 +131,11 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Decision:** one built-in, `Default`, whose values are `RenderParams`' defaults.
 
 **Reason:** the earlier decision fixed the values but not the name. "Default" is what the values are; a workflow name ("Quick preview") would claim something the owner has not decided.
+
+## [2026-09-06] Force-quit orphans are reaped on the next launch
+
+**Decision:** while a batch runs, the child's pid and process-group id are stored in QSettings (`run/orphan_pid`, `run/orphan_pgid`) and removed when the batch ends. On construction, `MainWindow` checks the marker; if that pid is alive and its command line is a `python -m serum_render`, its group is killed.
+
+**Reason:** nothing in the GUI can run after SIGKILL, and loky workers hold both ends of the call queue so they never notice the parent is gone. Verified: SIGKILL of the GUI at 8 of 4271 left nine processes rendering; the next launch removed all of them. The command-line check is what makes a recycled pid safe. The in-child fix (a parent-liveness thread in serum-render's worker initializer) is still the better one and stays an open thread; this is the GUI-side mitigation available today.
+
+**Also fixed here:** `RenderRunner.stop` is idempotent. Closing the window and quitting both call it, and on macOS a second `killpg` on a group that is already exiting raises EPERM (verified), which would surface as a traceback on quit.

@@ -39,7 +39,7 @@ from . import style
 from .dialogs import ProfileManager, SaveProfileDialog, SetupSheet, TableDialog, UnsavedDialog
 from .planner import Library, Plan, RenderParams, _EXTENSION_FOR, compose_fast, plan, scan
 from .profiles import PROFILE_KEYS, ProfileStore, built_in_values
-from .runner import RenderRunner
+from .runner import RenderRunner, reap_orphan
 from .widgets import (
     ElidingLabel,
     PathField,
@@ -137,12 +137,14 @@ class MainWindow(QMainWindow):
         self._build_menu()
 
         self.runner.started.connect(self._on_started)
+        self.runner.launched.connect(self._on_launched)
         self.runner.result.connect(self._on_result)
         self.runner.done.connect(self._on_done)
         self.runner.failed.connect(self._on_failed)
         self.runner.stopped.connect(self._on_stopped)
 
         self._load_settings()
+        self._reap_orphan()
         self._loading = False
         self._rescan()
         self._refresh()
@@ -656,6 +658,20 @@ class MainWindow(QMainWindow):
     def _on_started(self, _total: int, _workers: int) -> None:
         pass  # the denominator is the plan's, not the CLI's (see CORRECTIONS §5)
 
+    def _on_launched(self, pid: int, pgid: int) -> None:
+        # Remembered until the batch ends, so a force-quit leaves a marker the
+        # next launch can act on. Cleared in _end_batch.
+        self.settings.setValue("run/orphan_pid", pid)
+        self.settings.setValue("run/orphan_pgid", pgid)
+        self.settings.sync()
+
+    def _reap_orphan(self) -> None:
+        pid = self.settings.value("run/orphan_pid", 0, int)
+        if pid:
+            reap_orphan(pid, self.settings.value("run/orphan_pgid", 0, int))
+        self.settings.remove("run/orphan_pid")
+        self.settings.remove("run/orphan_pgid")
+
     def _on_result(self, ev: dict) -> None:
         b = self._batch
         if b is None:
@@ -684,6 +700,8 @@ class MainWindow(QMainWindow):
     def _end_batch(self) -> None:
         b = self._batch
         b["ended"] = True
+        self.settings.remove("run/orphan_pid")
+        self.settings.remove("run/orphan_pgid")
         self._batch = None
         self._lock(False)
         self.primary.setObjectName("primary")
