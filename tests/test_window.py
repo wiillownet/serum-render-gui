@@ -140,3 +140,19 @@ def test_profile_manager_grows_when_a_row_is_added(app, tmp_path):
     assert dlg.height() > before
     assert len({r.geometry().y() for r in rows}) == 2
     dlg.close()
+
+
+def test_detected_presets_dir_covers_both_libraries(monkeypatch, tmp_path):
+    from serum_render_gui import dialogs
+    from serum_render.formats import PresetFormat
+
+    s1, s2 = tmp_path / "Xfer" / "Serum Presets", tmp_path / "Xfer" / "Serum 2 Presets"
+    monkeypatch.setattr(dialogs, "default_preset_dir",
+                        lambda f: s1 if f == PresetFormat.SERUM1 else s2)
+    assert dialogs.detected_presets_dir() == tmp_path / "Xfer"
+    monkeypatch.setattr(dialogs, "default_preset_dir",
+                        lambda f: s1 if f == PresetFormat.SERUM1 else None)
+    assert dialogs.detected_presets_dir() == s1
+    monkeypatch.setattr(dialogs, "default_preset_dir",
+                        lambda f: s1 if f == PresetFormat.SERUM1 else tmp_path / "elsewhere")
+    assert dialogs.detected_presets_dir() == s1

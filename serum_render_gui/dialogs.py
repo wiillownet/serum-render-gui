@@ -107,6 +107,18 @@ def dialog_button(text: str, kind: str = "dialog") -> QWidget:
 # ---- Setup ----------------------------------------------------------------
 
 
+def detected_presets_dir() -> Path | None:
+    """One folder covering every detected library. Serum 1 and Serum 2 ship
+    as siblings (`Xfer Records/Serum Presets`, `Xfer Records/Serum 2
+    Presets`), so their parent scans both; a single library is used as is."""
+    found = [d for d in (default_preset_dir(f) for f in PresetFormat) if d is not None]
+    if not found:
+        return None
+    if len(found) > 1 and len({d.parent for d in found}) == 1:
+        return found[0].parent
+    return found[0]
+
+
 class SetupSheet(_Dialog):
     """Machine settings. `first_run=True` hoists the two folder rows in,
     adds the subtitle, and runs detection before showing."""
@@ -187,7 +199,7 @@ class SetupSheet(_Dialog):
                     p = default_plugin_path(fmt)
                     v[key] = str(p) if p and Path(p).exists() else ""
             if not v.get("presets"):
-                p = default_preset_dir(PresetFormat.SERUM1) or default_preset_dir(PresetFormat.SERUM2)
+                p = detected_presets_dir()
                 v["presets"] = str(p) if p else ""
         for key, (_lab, field) in self.rows.items():
             field.setText(v.get(key, ""))
