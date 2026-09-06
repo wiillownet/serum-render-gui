@@ -7,6 +7,7 @@ Focus is one global rule (docs/decisions.md).
 """
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from PySide6.QtGui import QFont, QGuiApplication
@@ -49,10 +50,14 @@ MONO = ["IBM Plex Mono", "Menlo", "Courier New"]
 
 def _pt(px: float) -> float:
     """CSS px to Qt points on this screen. macOS reports 72 dpi, so px == pt
-    there; the 96-dpi conversion in the reference is for other platforms."""
+    there; the 96-dpi conversion in the reference is for other platforms.
+
+    Fractional sizes are floored first: the font engine snaps 11.5 *up* to
+    12 (measured), and the reference says round down, never up, because the
+    26px row has no slack."""
     screen = QGuiApplication.primaryScreen()
     dpi = screen.logicalDotsPerInch() if screen else 96.0
-    return px * 72.0 / dpi
+    return math.floor(px) * 72.0 / dpi
 
 
 def _weight(w: int) -> QFont.Weight:
