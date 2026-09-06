@@ -169,3 +169,13 @@ def test_output_path_that_is_a_file_blocks_render(app, win, tmp_path):
 def test_tilde_in_a_typed_path_is_expanded(app, win):
     win.presets.setText("~/somewhere")
     assert win.presets.path() == str(Path.home() / "somewhere")
+
+
+def test_locking_takes_focus_and_selection_off_the_fields(app, win):
+    spin = win.spins["note"]
+    spin.setFocus()
+    spin.selectAll()
+    win._lock(True)
+    assert not spin.hasFocus()
+    assert not spin.lineEdit().hasSelectedText()
+    win._lock(False)

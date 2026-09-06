@@ -654,6 +654,14 @@ class MainWindow(QMainWindow):
 
     def _lock(self, locked: bool) -> None:
         keep = (self.reveal_presets, self.reveal_output)
+        if locked:
+            # A disabled field keeps its focus ring and text selection
+            # otherwise; a lit, selected, greyed-out spin box reads as broken.
+            focused = QApplication.focusWidget()
+            if focused is not None and focused is not self.primary:
+                self.primary.setFocus(Qt.FocusReason.OtherFocusReason)
+            for w in self.findChildren(QLineEdit):
+                w.deselect()
         for sec in (self.folders, self.sound, self.audio, self.files):
             sec.set_locked(locked, keep)
         for w in (self.combo, self.save_btn, self.gear):
