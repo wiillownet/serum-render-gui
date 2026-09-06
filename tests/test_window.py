@@ -156,3 +156,16 @@ def test_detected_presets_dir_covers_both_libraries(monkeypatch, tmp_path):
     monkeypatch.setattr(dialogs, "default_preset_dir",
                         lambda f: s1 if f == PresetFormat.SERUM1 else tmp_path / "elsewhere")
     assert dialogs.detected_presets_dir() == s1
+
+
+def test_output_path_that_is_a_file_blocks_render(app, win, tmp_path):
+    f = tmp_path / "afile"
+    f.write_bytes(b"")
+    win.output.set_path(str(f))
+    assert not win.primary.isEnabled()
+    assert "not a folder" in win.status.full_text()
+
+
+def test_tilde_in_a_typed_path_is_expanded(app, win):
+    win.presets.setText("~/somewhere")
+    assert win.presets.path() == str(Path.home() / "somewhere")

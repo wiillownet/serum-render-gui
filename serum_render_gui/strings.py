@@ -80,6 +80,7 @@ def setup_footer_wrong_extension(row_label: str, expected: str) -> str:
 
 
 FOOTER_OUTPUT_MISSING = "Output folder not set"
+OUTPUT_NOT_A_FOLDER = "Output path is a file, not a folder"  # PROVISIONAL
 FOOTER_NOTHING_SET = "Nothing set yet"
 
 

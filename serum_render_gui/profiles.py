@@ -37,6 +37,10 @@ class ProfileStore:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return
+        except ValueError as exc:
+            raise ValueError(
+                f"Unreadable profile file {self.path}: {exc}. Move it aside to start fresh."
+            ) from exc
         if data.get("version") != 1 or not isinstance(data.get("profiles"), dict):
             raise ValueError(f"Unreadable profile file {self.path}: expected version 1.")
         self._user = {

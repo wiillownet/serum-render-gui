@@ -258,7 +258,8 @@ class PathField(QLineEdit):
         self.editingFinished.connect(self._finished)
 
     def path(self) -> str:
-        return self.text().strip()
+        text = self.text().strip()
+        return str(Path(text).expanduser()) if text.startswith("~") else text
 
     def set_path(self, text: str) -> None:
         self.setText(text)

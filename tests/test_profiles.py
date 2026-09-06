@@ -40,3 +40,9 @@ def test_duplicate_names_and_orders_below_source(tmp_path):
     assert store.names() == [BUILT_IN, "A", "A copy 2", "A copy", "B"]
     assert store.duplicate(BUILT_IN) == f"{BUILT_IN} copy"
     assert store.names()[1] == f"{BUILT_IN} copy"
+
+
+def test_corrupt_store_names_the_file(tmp_path):
+    (tmp_path / "p.json").write_text("{not json")
+    with pytest.raises(ValueError, match="p.json"):
+        ProfileStore(tmp_path / "p.json")

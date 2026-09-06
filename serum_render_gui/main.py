@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QProgressBar,
     QSizePolicy,
     QStyle,
@@ -571,6 +572,10 @@ class MainWindow(QMainWindow):
             self._set_status("")
         elif not self.output.path():
             self._set_status(S.FOOTER_OUTPUT_MISSING, True)
+        elif Path(self.output.path()).exists() and not Path(self.output.path()).is_dir():
+            # The CLI refuses this with exit 2; refuse it before the click.
+            self._set_status(S.OUTPUT_NOT_A_FOLDER, True)
+            p = Plan()
         elif p.discovered == 0:
             self._set_status(S.NO_PRESETS, True)
         elif p.collisions:
@@ -935,7 +940,13 @@ def main() -> int:
     app.setFont(style.sans(11.5))
     settings = QSettings()
     data_dir = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
-    store = ProfileStore(data_dir / "profiles.json")
+    try:
+        store = ProfileStore(data_dir / "profiles.json")
+    except ValueError as exc:
+        # A traceback with no window is not a message. Name the file so the
+        # user can move it aside; nothing else recovers an unreadable store.
+        QMessageBox.critical(None, "serum-render", str(exc))
+        return 1
     win = MainWindow(settings, store)
     app.aboutToQuit.connect(win.runner.stop)
     win.show()
