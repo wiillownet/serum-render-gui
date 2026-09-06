@@ -8,7 +8,9 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QAbstractScrollArea,
     QApplication,
+    QScrollArea,
     QDialog,
     QFileDialog,
     QFrame,
@@ -66,10 +68,11 @@ class _Dialog(QDialog):
         self.vbox.addWidget(t)
 
     def hint_label(self, text: str) -> QLabel:
-        h = ElidingLabel(text)
+        h = QLabel(text)
         h.setObjectName("hint")
         h.setFont(style.sans(11))
-        h.setFixedHeight(15)
+        h.setWordWrap(True)  # the approved hints run past 560px; wrapping beats eliding a sentence
+        h.setMinimumHeight(15)
         return h
 
     def button_row(self, *buttons, leading: QWidget | None = None) -> QWidget:
@@ -585,7 +588,16 @@ class ProfileManager(_Dialog):
         self.list_layout = QVBoxLayout(self.list)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
         self.list_layout.setSpacing(0)
-        self.vbox.addWidget(self.list)
+        # Past five rows the dialog would outgrow a 445px parent, so the list
+        # scrolls inside a fixed height from there on.
+        self.scroll = QScrollArea()
+        self.scroll.setWidget(self.list)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.vbox.addWidget(self.scroll)
         self.vbox.addWidget(self.hint_label(S.MANAGER_HINT))
         close = dialog_button(S.CLOSE)
         close.clicked.connect(self.accept)
@@ -622,5 +634,10 @@ class ProfileManager(_Dialog):
         if self.isVisible():
             for i in range(self.list_layout.count()):
                 self.list_layout.itemAt(i).widget().show()
-        # ponytail: past ~8 profiles this outgrows the parent; add a scroll area then.
+        rows = len(self.store.names())
+        self.scroll.setFixedHeight(26 + 47 * min(rows, 5) + 2)
+        # AlwaysOn rather than AsNeeded: macOS's transient bar paints over
+        # the row buttons; a permanent bar reserves its own column.
+        self.scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn if rows > 5 else Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.fit()

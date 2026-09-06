@@ -788,8 +788,9 @@ class MainWindow(QMainWindow):
         if self._batch is not None:
             return
         v = self.machine()
+        v["presets"] = self.presets.path()  # for the count line; the row itself is first-run only
         if first_run:
-            v.update({"presets": self.presets.path(), "output": self.output.path()})
+            v["output"] = self.output.path()
         dlg = SetupSheet(self, v, first_run)
         accepted = dlg.exec()
         self.settings.setValue("ui/first_run_done", True)
@@ -827,6 +828,8 @@ class MainWindow(QMainWindow):
             self.combo.addItem(name)
         self.combo.insertSeparator(self.combo.count())
         self.combo.addItem(S.MANAGE_PROFILES)
+        # A command, not a name: sans, where the names above are mono.
+        self.combo.setItemData(self.combo.count() - 1, style.sans(11.5), Qt.ItemDataRole.FontRole)
         self.combo.setCurrentIndex(self.store.names().index(self._profile) if self._profile else -1)
         self.combo.display = self._profile or S.NO_PROFILE
         self.combo.blockSignals(False)
