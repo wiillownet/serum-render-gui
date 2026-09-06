@@ -55,7 +55,13 @@ class RenderParams:
     sample_rate: int = 44100
     bit_depth: str = "16"
     output_format: str = "wav"
-    filename_template: str = "{preset}"
+    # Not the CLI's "{preset}". Measured on the real factory libraries: that
+    # template collides 253 times on the Serum 1 tree (Splice packs ship the
+    # same preset at a folder root and inside a subfolder), and the design
+    # blocks on collisions — so a fresh install would render nothing at all.
+    # "{subdir}/{preset}" mirrors the preset tree and is collision-free on both
+    # factory libraries. See docs/decisions.md.
+    filename_template: str = "{subdir}/{preset}"
     deterministic: bool = False
     no_recurse: bool = False
 

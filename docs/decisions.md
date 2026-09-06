@@ -40,10 +40,20 @@
 
 **Reason:** `resolve_output_paths` disambiguates duplicates to `foo_1`, `foo_2`, so reading its output would report zero collisions every time — the check would silently always pass. The design's stated premise for blocking ("one render is destroyed and nothing records which") is out of date: serum-render fixed that in 0.2.0. The surviving reason to block is the design's second one, which is the stronger argument anyway — `_1` suffixes invent filenames the user never asked for. Empty stems are excluded, because `resolve_output_paths` gives each a distinct `preset_NNNN` fallback and they never actually contend.
 
-**Measured, and it matters:** the real Serum 1 factory library has **253 collisions** under the default `{preset}` template (Splice packs ship the same preset at a folder root and inside a subfolder), so a fresh install would be blocked from rendering anything. `{subdir}/{preset}` brings it to zero on both factory libraries. **Open: whether the GUI's default template should therefore be `{subdir}/{preset}` rather than the CLI's `{preset}`.**
+**Measured, and it matters:** the real Serum 1 factory library has **253 collisions** under the default `{preset}` template (Splice packs ship the same preset at a folder root and inside a subfolder), so a fresh install would be blocked from rendering anything. `{subdir}/{preset}` brings it to zero on both factory libraries. **Resolved 2026-09-05: the GUI's default template is `{subdir}/{preset}`, not the CLI's `{preset}`.** The CLI keeps its own default — it disambiguates rather than blocking, so it is not broken by collisions the way the GUI would be. `tests/test_planner.py` pins the GUI default so it cannot drift back.
 
 ## [2026-09-05] `interpreter()` refuses to guess when frozen
 
 **Decision:** `interpreter()` returns `sys.executable` normally, and raises when `sys.frozen` is set and `BUNDLED_INTERPRETER` has not been configured.
 
 **Reason:** in a PyInstaller bundle `sys.executable` is the GUI binary, so `[sys.executable, "-m", "serum_render"]` re-opens the GUI instead of rendering — silently, and recursively. Written now rather than at packaging time because retrofitting it means re-testing every launch path. No plausible bundled path is guessed, because a wrong path fails at a worse moment than a missing one.
+
+## [2026-09-05] One global focus treatment, derived rather than designed
+
+**Decision:** Every focusable widget gets `border: 1px solid #4A4E57` on focus — the same token the two drawn text fields use. Applied once, globally, in the stylesheet rather than per widget.
+
+**Reason:** the mockups contain exactly one focus treatment, and only on the two `QLineEdit`s that get typed into (the Save-profile name and the profile manager's rename field). Every other widget would otherwise fall through to Qt's default focus rectangle, which is drawn from the platform palette and will not match anything in this app. The design handoff flags this as the single largest gap and offers this derivation; taking it is cheaper than leaving focus visually undefined across most of the UI, and a global rule is what makes it consistent.
+
+**Explicitly not signed off by the design.** It is a derivation from a neighbouring token, and it is recorded here so a later reader knows it was a judgement call rather than a spec. Revisit if it reads wrong against the accent — the risk is that `#4A4E57` is close enough to `#383C44` (the ghost-button border) that focus on a button is hard to see.
+
+**Alternatives considered:** leaving Qt's native focus rectangle — rejected, it is the one thing guaranteed not to match a fully custom dark palette. Using the accent `#A6E04D` for focus — rejected because accent means *go* in this app (Render, progress, a resolved path), and a fourth meaning would dilute it; the design is explicit that nothing else may borrow it.

@@ -123,10 +123,11 @@ def test_empty_scan_plans_to_nothing(params):
 # ---- collisions -----------------------------------------------------------
 
 
-def test_same_name_in_two_folders_collides_under_the_default_template(params):
+def test_same_name_in_two_folders_collides_under_a_flat_template(params):
     _touch(params.presets_dir / "Bass" / "Punch.fxp")
     _touch(params.presets_dir / "Lead" / "Punch.fxp")
-    result = plan(scan(params.presets_dir), params)
+    flat = RenderParams(**{**params.as_dict(), "filename_template": "{preset}"})
+    result = plan(scan(params.presets_dir), flat)
     assert len(result.collisions) == 1
     assert result.collisions[0].stem == "Punch"
     assert len(result.collisions[0].presets) == 2
@@ -161,7 +162,8 @@ def test_collision_detection_reads_stems_not_resolved_paths(params):
     collisions every time."""
     _touch(params.presets_dir / "Bass" / "Punch.fxp")
     _touch(params.presets_dir / "Lead" / "Punch.fxp")
-    result = plan(scan(params.presets_dir), params)
+    flat = RenderParams(**{**params.as_dict(), "filename_template": "{preset}"})
+    result = plan(scan(params.presets_dir), flat)
     assert result.collisions
     # The CLI would still write both files, under disambiguated names.
     assert len({Path(p).name for p in result.output_paths}) == 2
@@ -211,3 +213,15 @@ def test_npy_format_changes_which_outputs_count_as_existing(params):
     _touch(params.output_dir / "a.wav")
     as_npy = RenderParams(**{**params.as_dict(), "output_format": "npy"})
     assert plan(scan(params.presets_dir), as_npy).existing == 0
+
+
+def test_the_default_template_is_collision_free_on_a_nested_tree(params):
+    """Regression guard for the default. The CLI's `{preset}` collides 253
+    times on the real Serum 1 factory library, and the design blocks on
+    collisions — so that default would render nothing on a fresh install."""
+    assert params.filename_template == "{subdir}/{preset}"
+    _touch(params.presets_dir / "Bass" / "Punch.fxp")
+    _touch(params.presets_dir / "Lead" / "Punch.fxp")
+    result = plan(scan(params.presets_dir), params)
+    assert result.collisions == ()
+    assert not result.blocked
