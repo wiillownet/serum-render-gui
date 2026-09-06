@@ -50,7 +50,9 @@ class RenderParams:
     note: int = 48
     velocity: int = 127
     duration: float = 1.0
-    tail: float = 1.0
+    # 0.5, not the CLI's 1.0: 1.0 duration + 0.5 tail is the 1.5s total the
+    # default profile is specified as. See docs/decisions.md.
+    tail: float = 0.5
     midi_path: Path | None = None
     sample_rate: int = 44100
     bit_depth: str = "16"
@@ -189,7 +191,7 @@ def _collisions(
     )
 
 
-def build_argv(params: RenderParams, skip_missing_format: bool = False) -> list[str]:
+def build_argv(params: RenderParams) -> list[str]:
     """Flags for `python -m serum_render`, without the interpreter or `-m`.
 
     Every value is passed explicitly rather than relying on the CLI's defaults:
@@ -226,8 +228,14 @@ def build_argv(params: RenderParams, skip_missing_format: bool = False) -> list[
         argv.append("--deterministic")
     if params.no_recurse:
         argv.append("--no-recurse")
-    if skip_missing_format:
-        argv.append("--skip-missing-format")
+    # Always, and deliberately not a parameter. The GUI filters the batch
+    # itself and states the split in the footer, so it must never call the CLI
+    # path that refuses a whole mixed library. It is a no-op when no plugin is
+    # missing, and when nothing is renderable the GUI has already disabled
+    # Render. It also closes a race: a preset landing in the folder between
+    # planning and launching would otherwise abort the entire batch over a file
+    # the GUI never saw. A flag that must always be set is not a parameter.
+    argv.append("--skip-missing-format")
 
     argv.append("--json")
     return argv

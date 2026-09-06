@@ -108,7 +108,7 @@ class RenderRunner(QObject):
     def running(self) -> bool:
         return self._proc is not None
 
-    def start(self, params: RenderParams, skip_missing_format: bool = False) -> None:
+    def start(self, params: RenderParams) -> None:
         if self._proc is not None:
             raise RuntimeError("A render is already running.")
 
@@ -127,7 +127,7 @@ class RenderRunner(QObject):
                 QProcess.UnixProcessFlag.CreateNewSession
             )
         proc.setProgram(interpreter())
-        proc.setArguments(["-m", "serum_render", *build_argv(params, skip_missing_format)])
+        proc.setArguments(["-m", "serum_render", *build_argv(params)])
         proc.setReadChannel(QProcess.ProcessChannel.StandardOutput)
         proc.started.connect(self._on_started)
         proc.readyReadStandardOutput.connect(self._on_stdout)

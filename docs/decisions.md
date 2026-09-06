@@ -57,3 +57,39 @@
 **Explicitly not signed off by the design.** It is a derivation from a neighbouring token, and it is recorded here so a later reader knows it was a judgement call rather than a spec. Revisit if it reads wrong against the accent — the risk is that `#4A4E57` is close enough to `#383C44` (the ghost-button border) that focus on a button is hard to see.
 
 **Alternatives considered:** leaving Qt's native focus rectangle — rejected, it is the one thing guaranteed not to match a fully custom dark palette. Using the accent `#A6E04D` for focus — rejected because accent means *go* in this app (Render, progress, a resolved path), and a fourth meaning would dilute it; the design is explicit that nothing else may borrow it.
+
+## [2026-09-05] One built-in profile, 1.5s total
+
+**Decision:** Ship a single built-in profile — duration `1.0`, tail `0.5` (1.5s total), 44100 Hz, 16-bit, WAV, template `{subdir}/{preset}`. These are `RenderParams`' own defaults, so the code default and the shipped profile cannot drift apart. `tail` is therefore `0.5`, not the CLI's `1.0`.
+
+**Reason:** the design names three built-ins — `Quick preview`, `Archival 24-bit`, `Stems 48k` — but specifies no parameters for any of them; the names were placeholders. The owner has one real workflow, the 1.5s preview pass, and does not yet know what the others should be. Shipping three profiles with invented values would put numbers on screen that nobody chose, and the revert tooltip quotes a built-in *by name*, so a made-up profile becomes a made-up sentence in the UI.
+
+**Alternatives considered:** shipping no built-in and opening on `(no profile)` — a state the design already defines, but it leaves a fresh install with an empty strip and a revert arrow pointing at nothing. Shipping all three with guessed values — rejected above.
+
+**Open:** the other two profiles, if they turn out to be real workflows. Adding one later is a row in a JSON file, not a design change.
+
+## [2026-09-05] "Separate folders per synth" edits the template; it is not its own setting
+
+**Decision:** The checkbox is a shortcut for editing the filename template. The template string stays the single source of truth.
+
+```
+checked  <=>  the template starts with "{format}/"
+check    ->   prepend "{format}/"
+uncheck  ->   strip that prefix
+```
+
+With the default template that yields `{format}/{subdir}/{preset}` → `serum1/Bass/Punch.wav`.
+
+**Reason:** **Prepend rather than replace**, because `{format}` and `{subdir}` do different jobs — one groups by synth, the other mirrors the preset tree — and both are wanted at once. The design assumed the default was `{preset}`, so it framed the toggle as `{preset}` ⟷ `{format}/{preset}`; that framing does not survive the default changing, but the intent does.
+
+**Why "starts with" and not "contains":** a hand-typed `{preset}-{format}` produces separate *files*, not separate *folders*, so ticking the box there would make the label lie. The narrow rule keeps the checkbox honest, and still auto-ticks when someone types the prefix by hand.
+
+**Alternatives considered:** a separate boolean applied on top of the template — rejected, it creates two sources of truth for the output layout and a user who hand-edits the template gets silently overridden.
+
+## [2026-09-05] The GUI always passes `--skip-missing-format`
+
+**Decision:** `build_argv` emits the flag unconditionally. It is not a parameter.
+
+**Reason:** there is no case where the GUI wants the other behaviour. The design requires it to render what it can and state the split in the footer, so it must never call the CLI path that refuses a whole mixed library. When no plugin is missing the flag is a no-op; when nothing is renderable the GUI has already disabled Render, so the CLI's exit 2 never fires. It also closes a race: a preset landing in the folder between planning and launching would otherwise abort the entire batch over a file the GUI never saw.
+
+**Alternatives considered:** keeping it as a parameter defaulting to `True` — rejected. A flag that must always be one value is not a parameter, it is a footgun with a default; deleting it makes the mistake unmakeable rather than merely unlikely.

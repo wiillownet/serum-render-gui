@@ -70,9 +70,10 @@ def test_argv_booleans_appear_only_when_true(params):
     assert "--skip-existing" in build_argv(on)
 
 
-def test_argv_skip_missing_format_is_opt_in(params):
-    assert "--skip-missing-format" not in build_argv(params)
-    assert "--skip-missing-format" in build_argv(params, skip_missing_format=True)
+def test_argv_always_filters_a_mixed_library(params):
+    """Not a parameter: the GUI states the renderable split in its footer, so
+    it must never call the CLI path that refuses a whole mixed library."""
+    assert "--skip-missing-format" in build_argv(params)
 
 
 def test_argv_automatic_workers_becomes_the_cli_sentinel(params):
