@@ -38,8 +38,7 @@ serum-render-gui = "serum_render_gui.main:main"
 [project.optional-dependencies]
 dev = ["pytest"]
 
-# Machine-wide git excludes are not read by hatchling,
-# which hatchling does not read — it only honors the project's own .gitignore.
-# Without this they get swept into the sdist from the working directory.
+# Hatchling reads only the project's own .gitignore, not git's machine-wide
+# excludes, so the sdist lists what it ships rather than what it skips.
 [tool.hatch.build.targets.sdist]
-exclude = ["docs/design"]
+include = ["/serum_render_gui", "/tests", "/assets", "/packaging", "/docs/decisions.md", "/README.md", "/LICENSE", "/pyproject.toml"]

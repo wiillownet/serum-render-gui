@@ -38,6 +38,10 @@ tar -xzf "build/$TARBALL" -C "$RES"           # extracts to Resources/python
 PY="$RES/python/bin/python3"
 "$PY" -m pip install --quiet --no-warn-script-location --upgrade pip
 "$PY" -m pip install --quiet --no-warn-script-location .
+# pip records the build machine's path in direct_url.json and in every
+# console-script shebang; neither belongs in the bundle and the scripts are unused.
+rm -f "$RES"/python/lib/python3.12/site-packages/*.dist-info/direct_url.json
+find "$RES/python/bin" -type f ! -name "python3*" -delete
 rm -rf "$RES/python/lib/python3.12/test" "$RES/python/lib/python3.12/idlelib" \
        "$RES/python/lib/python3.12/tkinter" "$RES/python/share"
 find "$RES/python" -name __pycache__ -type d -prune -exec rm -rf {} +
