@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 import html
+import re
 import time
 
 from PySide6.QtCore import QByteArray, QSettings, Qt, Signal
@@ -714,9 +715,11 @@ class LogWindow(QWidget):
     def _add(self, line: str, color: str) -> None:
         stamp = time.strftime("%H:%M:%S")
         self._lines.append(f"{stamp}  {line}")
+        # Rich text collapses runs of spaces; the status column relies on them.
+        body = re.sub(r" {2,}", lambda m: "&nbsp;" * len(m.group()), html.escape(line))
         self.view.append(
             f'<span style="color:{style.TEXT_FAINT}">{stamp}</span>&nbsp;&nbsp;'
-            f'<span style="color:{color}">{html.escape(line)}</span>'
+            f'<span style="color:{color}">{body}</span>'
         )
 
     def batch_started(self, command: list[str], total: int) -> None:

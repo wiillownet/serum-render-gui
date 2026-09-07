@@ -214,6 +214,9 @@ QTableCornerButton::section {{ background: {PANEL_HEADER}; border: none; }}
 QScrollBar:vertical {{ background: transparent; width: 8px; margin: 0; }}
 QScrollBar::handle:vertical {{ background: {RAISED_LINE}; border-radius: 4px; min-height: 20px; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+QScrollBar:horizontal {{ background: transparent; height: 8px; margin: 0; }}
+QScrollBar::handle:horizontal {{ background: {RAISED_LINE}; border-radius: 4px; min-width: 20px; }}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 
 QMenu {{
   background: {PANEL}; border: 1px solid {RAISED_LINE}; border-radius: 5px; padding: 4px;
