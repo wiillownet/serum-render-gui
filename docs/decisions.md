@@ -169,3 +169,11 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Reason:** the 2026-09-05 rule that a frozen GUI must never host the render workers is moot when nothing is frozen: `sys.executable` is a real interpreter, so loky's spawn and `-m serum_render` work unchanged and `BUNDLED_INTERPRETER` stays unused. One interpreter, one build script, no PyInstaller hooks. Verified: the bundle renders three presets end to end through the GUI's own runner, `open` launches it under the name "Serum Render" with the bundle id, and it quits clean. The prune list comes from `otool -L` on the kept modules and plugins, not from guessing. 572MB before pruning, 338MB after; what remains is dawdreamer at 131MB and Qt at 100MB.
 
 **Alternatives considered:** PyInstaller plus a second embedded interpreter for the renderer (two Pythons, no benefit). pipx only (kept as the developer path in the README, not the user-facing one).
+
+## [2026-09-07] The Default profile targets Petri's one-shot map
+
+**Decision:** the built-in Default stays at duration 1.0 s, tail 0.5 s, 44.1 kHz, 16-bit WAV, `{subdir}/{preset}`. Do not raise the tail to serum-render's own 1.0 s default.
+
+**Reason:** 1.0 + 0.5 writes exactly 66150 frames, 1.500 s, which is Petri's default max length; verified that files at exactly 1.5 s still land on its map. WAV because Petri decodes everything to PCM for analysis and exports WAV itself, and a lossy format alters the transient and high-frequency detail its analysis measures. 16-bit because 24 changes nothing Petri reads.
+
+**Alternatives considered:** FLAC (same audio, half the size; a valid user choice, not the default). OGG (lossy, rejected for this use).
