@@ -60,9 +60,10 @@ def interpreter() -> str:
     return BUNDLED_INTERPRETER
 
 
-# serum-render reports each render's peak. Below this the file is silence for
-# any practical purpose (-80 dBFS); the engine's own warning threshold is lower.
-SILENT_PEAK = 1e-4
+# serum-render reports each render's peak. Below -60 dBFS a 1.5 s one-shot is
+# silence for any practical purpose (a real preset measured -75 dBFS: nothing
+# audible); the engine's own warning threshold is far lower.
+SILENT_PEAK = 1e-3
 
 
 def is_silent(ev: dict) -> bool:

@@ -108,7 +108,7 @@ class ProfileCombo(QComboBox):
 class MainWindow(QMainWindow):
     def __init__(self, settings: QSettings, store: ProfileStore) -> None:
         super().__init__()
-        self.setWindowTitle("serum-render")
+        self.setWindowTitle(S.APP_TITLE)
         self.settings = settings
         settings.setParent(self)  # outlive-the-window signals (editingFinished) still reach it
         self.store = store
@@ -581,8 +581,8 @@ class MainWindow(QMainWindow):
 
     # ---- footer, before a batch ----------------------------------------------
 
-    def _set_status(self, text: str, warning: bool = False) -> None:
-        self.status.setText(text)
+    def _set_status(self, text: str, warning: bool = False, accent: str = "") -> None:
+        self.status.setText(text, accent)
         set_state(self.status, "tone", "warning" if warning else "")
 
     def _set_bar_visible(self, on: bool) -> None:
@@ -780,10 +780,9 @@ class MainWindow(QMainWindow):
             text = S.done_filtered(ok, b["no_plugin"], S.synth_word(fmt.value), t)
         else:
             text = S.done_clean(ok, t)
-        if b["silent"]:
-            text += S.SEP + S.silent(b["silent"])
-        self._set_status(text, bool(aborted or failed or b["silent"]))
-        self.log.note(text, bool(aborted or failed))
+        accent = S.SEP + S.silent(b["silent"]) if b["silent"] else ""
+        self._set_status(text, bool(aborted or failed), accent)
+        self.log.note(text + accent, bool(aborted or failed))
 
     def _on_failed(self, message: str) -> None:
         b = self._batch

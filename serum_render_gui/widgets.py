@@ -6,6 +6,7 @@ section 6 for the Qt facts these work around.
 """
 from __future__ import annotations
 
+import html
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, QPointF, QSize, Qt, Signal
@@ -207,18 +208,22 @@ class ElidingLabel(QLabel):
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._full = ""
+        self._accent = ""
         self._mode = mode
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.setMinimumWidth(1)
         self.setText(text)
 
-    def setText(self, text: str) -> None:  # noqa: N802
+    def setText(self, text: str, accent: str = "") -> None:  # noqa: N802
+        """`accent` is a trailing part drawn in the warning colour while the
+        rest keeps the label's own tone; elision only ever eats `text`."""
         self._full = text
-        self.setToolTip(text)
+        self._accent = accent
+        self.setToolTip(text + accent)
         self._relayout()
 
     def full_text(self) -> str:
-        return self._full
+        return self._full + self._accent
 
     def setFont(self, font) -> None:  # noqa: N802
         super().setFont(font)
@@ -229,8 +234,15 @@ class ElidingLabel(QLabel):
         self._relayout()
 
     def _relayout(self) -> None:
-        width = max(self.contentsRect().width(), 6)
-        super().setText(QFontMetrics(self.font()).elidedText(self._full, self._mode, width))
+        fm = QFontMetrics(self.font())
+        width = max(self.contentsRect().width() - fm.horizontalAdvance(self._accent), 6)
+        main = fm.elidedText(self._full, self._mode, width)
+        if not self._accent:
+            self.setTextFormat(Qt.TextFormat.PlainText)
+            super().setText(main)
+            return
+        self.setTextFormat(Qt.TextFormat.RichText)
+        super().setText(f'{html.escape(main)}<span style="color:{style.WARNING}">{html.escape(self._accent)}</span>')
 
 
 # ---- PathField ------------------------------------------------------------

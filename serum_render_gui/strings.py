@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 
 SEP = " · "
+APP_TITLE = "Serum Render"
 
 # ---- Per-setting tooltips (approved 2026-09-05) ----------------------------
 

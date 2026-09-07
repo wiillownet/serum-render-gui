@@ -237,6 +237,8 @@ def test_log_window_records_the_batch(app, win):
     assert "skipped  three.fxp  exists" in text
     assert "stderr   some warning" in text
     assert text.rstrip().endswith("2 rendered · 1 failed · 2s · 1 silent")
+    assert win.status.full_text().endswith("· 1 silent")
+    assert 'color:' in win.status.text() and win.status.text().endswith("1 silent</span>")
     win._show_log()
     assert win.log.isVisible()
     win.log.close()
