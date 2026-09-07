@@ -38,8 +38,8 @@ from serum_render.output import FORMATS
 
 from . import strings as S
 from . import style
-from .dialogs import ProfileManager, SaveProfileDialog, SetupSheet, TableDialog, UnsavedDialog
-from .planner import Library, Plan, RenderParams, _EXTENSION_FOR, compose_fast, plan, scan
+from .dialogs import LogWindow, ProfileManager, SaveProfileDialog, SetupSheet, TableDialog, UnsavedDialog
+from .planner import Library, Plan, RenderParams, _EXTENSION_FOR, build_argv, compose_fast, plan, scan
 from .profiles import PROFILE_KEYS, ProfileStore, built_in_values
 from .runner import RenderRunner, reap_orphan
 from .widgets import (
@@ -144,6 +144,8 @@ class MainWindow(QMainWindow):
         self.runner.done.connect(self._on_done)
         self.runner.failed.connect(self._on_failed)
         self.runner.stopped.connect(self._on_stopped)
+        self.log = LogWindow(self, settings)
+        self.runner.stderr_line.connect(self.log.stderr)
 
         self._load_settings()
         self._reap_orphan()
@@ -381,6 +383,11 @@ class MainWindow(QMainWindow):
         a.setShortcut("Ctrl+,")
         a.triggered.connect(self._open_setup)
         m.addAction(a)
+        view = self.menuBar().addMenu("View")
+        log = QAction(S.LOG, self)
+        log.setShortcut("Ctrl+L")
+        log.triggered.connect(self._show_log)
+        view.addAction(log)
 
     # ---- settings ------------------------------------------------------------
 
@@ -670,6 +677,7 @@ class MainWindow(QMainWindow):
         self._show_list_button(None)
         self._set_status(S.progress(0, total, 0))
         self.eta.setText(S.STARTING)
+        self.log.batch_started(["serum-render", *build_argv(p)], total)
         self.runner.start(p)
 
     def _lock(self, locked: bool) -> None:
@@ -717,9 +725,11 @@ class MainWindow(QMainWindow):
             b["failures"].append((ev.get("path", ""), ev.get("error", "")))
         elif ev.get("reason") == "no_plugin":
             b["no_plugin"] += 1
+            self.log.result(ev)
             return
         else:
             return  # reason "exists": not part of this batch's denominator
+        self.log.result(ev)
         done = b["ok"] + b["failed"]
         now = time.monotonic()
         if b["first"] is None:
@@ -766,6 +776,7 @@ class MainWindow(QMainWindow):
             self._set_status(S.done_filtered(ok, b["no_plugin"], S.synth_word(fmt.value), t))
         else:
             self._set_status(S.done_clean(ok, t))
+        self.log.note(self.status.full_text(), bool(aborted or failed))
 
     def _on_failed(self, message: str) -> None:
         b = self._batch
@@ -781,6 +792,7 @@ class MainWindow(QMainWindow):
         else:
             self._set_status(message.strip().splitlines()[0] if message.strip() else message, True)
             self.status.setToolTip(message)
+        self.log.note(message.strip(), True)
 
     def _on_stopped(self) -> None:
         b = self._batch
@@ -794,6 +806,7 @@ class MainWindow(QMainWindow):
         self._set_status(S.stopped(done, b["total"], skip_on, b["strangers"]), not skip_on)
         if b["failed"]:
             self._show_list_button("failures")
+        self.log.note(self.status.full_text())
 
     # ---- dialogs ---------------------------------------------------------------
 
@@ -841,6 +854,11 @@ class MainWindow(QMainWindow):
         p = dataclasses.replace(b["params"], skip_existing=True)
         self._launch(p, len(b["failures"]), retry=True)
         self._batch["output_for"] = b["output_for"]
+
+    def _show_log(self) -> None:
+        self.log.show()
+        self.log.raise_()
+        self.log.activateWindow()
 
     def _open_setup(self, first_run: bool = False) -> None:
         if self._batch is not None:
@@ -958,6 +976,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, ev) -> None:
         self.runner.stop()
+        self.log.close()
         super().closeEvent(ev)
 
 

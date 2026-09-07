@@ -115,6 +115,9 @@ NO_PROFILE = "(no profile)"
 MODIFIED = "(modified)"
 MANAGE_PROFILES = "Manage profiles…"
 PREFERENCES = "Preferences…"
+LOG = "Log"
+SAVE_AS = "Save…"
+LOG_EMPTY = "Nothing rendered yet. Each batch logs its command, every result, and stderr here."  # PROVISIONAL
 
 
 def revert_tooltip(profile: str | None) -> str:

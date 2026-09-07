@@ -98,6 +98,8 @@ class RenderRunner(QObject):
     # A user Stop finished tearing the tree down. Carries nothing: the GUI
     # already has its own tally, and the child never gets to emit `done`.
     stopped = Signal()
+    # One line of the child's stderr, as it arrives. For the log window.
+    stderr_line = Signal(str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -207,6 +209,7 @@ class RenderRunner(QObject):
         for line in text.splitlines():
             if line.strip():
                 self._stderr.append(line)
+                self.stderr_line.emit(line)
 
     def _on_error(self, error: QProcess.ProcessError) -> None:
         if error == QProcess.ProcessError.FailedToStart:

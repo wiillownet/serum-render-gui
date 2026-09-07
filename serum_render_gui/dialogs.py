@@ -6,7 +6,10 @@ import os
 from collections import Counter
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+import html
+import time
+
+from PySide6.QtCore import QByteArray, QSettings, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractScrollArea,
     QApplication,
@@ -21,6 +24,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QStackedWidget,
     QTableWidget,
+    QTextEdit,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -653,3 +657,97 @@ class ProfileManager(_Dialog):
         self.scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOn if rows > 5 else Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.fit()
+
+
+# ---- Log window -----------------------------------------------------------
+
+
+class LogWindow(QWidget):
+    """The advanced view: one line per event, plus the child's stderr.
+
+    A separate, resizable window rather than a pane, because the main window
+    must never change height. Shows completions only: serum-render 0.4.0 has
+    no per-job start event, so "what is worker 3 on" is not knowable yet.
+    """
+
+    def __init__(self, parent: QWidget | None, settings: QSettings) -> None:
+        super().__init__(parent, Qt.WindowType.Window)
+        self.setWindowTitle(S.LOG)
+        self._settings = settings
+        self._lines: list[str] = []
+        vbox = QVBoxLayout(self)
+        vbox.setContentsMargins(16, 14, 16, 14)
+        vbox.setSpacing(10)
+        self.view = QTextEdit()
+        self.view.setReadOnly(True)
+        self.view.setFont(style.mono(11))
+        self.view.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.view.setStyleSheet(
+            f"QTextEdit {{ background: {style.WELL}; border: 1px solid {style.LINE};"
+            f" border-radius: 6px; padding: 8px; color: {style.TEXT_DIM}; }}"
+        )
+        self.view.setPlaceholderText(S.LOG_EMPTY)
+        vbox.addWidget(self.view, 1)
+        copy = push_button(S.COPY, 30, "dialog")
+        copy.clicked.connect(lambda: QApplication.clipboard().setText(self.text()))
+        save = push_button(S.SAVE_AS, 30, "dialog")
+        save.clicked.connect(self._save)
+        row = QWidget()
+        row.setFixedHeight(30)
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(0, 0, 0, 0)
+        hl.setSpacing(10)
+        hl.addStretch(1)
+        hl.addWidget(copy)
+        hl.addWidget(save)
+        vbox.addWidget(row)
+        self.resize(640, 360)
+        geo = settings.value("ui/log_geometry")
+        if isinstance(geo, QByteArray) and not geo.isEmpty():
+            self.restoreGeometry(geo)
+
+    # -- content --
+
+    def text(self) -> str:
+        return "\n".join(self._lines)
+
+    def _add(self, line: str, color: str) -> None:
+        stamp = time.strftime("%H:%M:%S")
+        self._lines.append(f"{stamp}  {line}")
+        self.view.append(
+            f'<span style="color:{style.TEXT_FAINT}">{stamp}</span>&nbsp;&nbsp;'
+            f'<span style="color:{color}">{html.escape(line)}</span>'
+        )
+
+    def batch_started(self, command: list[str], total: int) -> None:
+        if self._lines:
+            self._add("", style.TEXT_FAINT)
+        self._add(" ".join(command), style.TEXT)
+        self._add(f"{total} to render", style.TEXT_DIM)
+
+    def result(self, ev: dict) -> None:
+        status = ev.get("status", "?")
+        path = Path(str(ev.get("path", ""))).name
+        if status == "ok":
+            self._add(f"ok       {path}", style.TEXT_DIM)
+        elif status == "error":
+            self._add(f"error    {path}  {ev.get('error', '')}", style.WARNING)
+        else:
+            self._add(f"skipped  {path}  {ev.get('reason', '')}", style.TEXT_FAINT)
+
+    def stderr(self, line: str) -> None:
+        self._add(f"stderr   {line}", style.TEXT_FAINT)
+
+    def note(self, line: str, warning: bool = False) -> None:
+        self._add(line, style.WARNING if warning else style.TEXT)
+
+    # -- window --
+
+    def _save(self) -> None:
+        path, _f = QFileDialog.getSaveFileName(self, S.SAVE_AS, str(Path.home() / "serum-render.log"), "Log (*.log *.txt)")
+        if path:
+            Path(path).write_text(self.text() + "\n", encoding="utf-8")
+
+    def closeEvent(self, ev) -> None:
+        self._settings.setValue("ui/log_geometry", self.saveGeometry())
+        super().closeEvent(ev)

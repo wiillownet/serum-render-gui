@@ -210,3 +210,27 @@ def test_done_with_aborted_reads_as_executor_broken(app, win):
     assert win.status.full_text() == "3 rendered · 7 abandoned · executor broken"
     assert win.list_btn.isVisible() and win.list_btn.text() == "Failures"
     assert win._last["broken"].startswith("TerminatedWorkerError")
+
+
+def test_log_window_records_the_batch(app, win):
+    import time
+
+    win.log.batch_started(["serum-render", "a", "b"], 3)
+    win._batch = {"params": win.params(), "total": 3, "ok": 0, "failed": 0, "no_plugin": 0,
+                  "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
+                  "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
+    win._on_result({"status": "ok", "path": "/x/Bass/one.fxp"})
+    win._on_result({"status": "error", "path": "/x/two.fxp", "error": "boom"})
+    win._on_result({"status": "skipped", "path": "/x/three.fxp", "reason": "exists"})
+    win.runner.stderr_line.emit("some warning")
+    win._on_done({"ok": 1, "failed": 1, "elapsed": 2.0})
+    text = win.log.text()
+    assert "serum-render a b" in text and "3 to render" in text
+    assert "ok       one.fxp" in text
+    assert "error    two.fxp  boom" in text
+    assert "three.fxp" not in text  # exists-skips are not this batch's work
+    assert "stderr   some warning" in text
+    assert text.rstrip().endswith("1 rendered · 1 failed · 2s")
+    win._show_log()
+    assert win.log.isVisible()
+    win.log.close()
