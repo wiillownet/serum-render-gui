@@ -41,7 +41,7 @@ from . import style
 from .dialogs import LogWindow, ProfileManager, SaveProfileDialog, SetupSheet, TableDialog, UnsavedDialog
 from .planner import Library, Plan, RenderParams, _EXTENSION_FOR, build_argv, compose_fast, plan, scan
 from .profiles import PROFILE_KEYS, ProfileStore, built_in_values
-from .runner import RenderRunner, reap_orphan
+from .runner import is_silent, RenderRunner, reap_orphan
 from .widgets import (
     ElidingLabel,
     PathField,
@@ -658,7 +658,7 @@ class MainWindow(QMainWindow):
 
     def _launch(self, p: RenderParams, total: int, retry: bool) -> None:
         self._batch = {
-            "params": p, "total": total, "ok": 0, "failed": 0, "no_plugin": 0,
+            "params": p, "total": total, "ok": 0, "failed": 0, "no_plugin": 0, "silent": 0,
             "failures": [], "t0": time.monotonic(), "first": None, "retry": retry,
             "strangers": self._plan.existing, "skip_on": p.skip_existing,
             "output_for": dict(zip(self._plan.preset_paths, self._plan.output_paths)),
@@ -721,6 +721,8 @@ class MainWindow(QMainWindow):
         st = ev.get("status")
         if st == "ok":
             b["ok"] += 1
+            if is_silent(ev):
+                b["silent"] += 1
         elif st == "error":
             b["failed"] += 1
             b["failures"].append((ev.get("path", ""), ev.get("error", "")))
@@ -768,17 +770,20 @@ class MainWindow(QMainWindow):
         self.reveal_done.setVisible(True)
         if aborted:
             b["broken"] = aborted
-            self._set_status(S.executor_broken(ok, b["total"] - ok - failed), True)
+            text = S.executor_broken(ok, b["total"] - ok - failed)
             self._show_list_button("failures")
         elif failed:
-            self._set_status(S.done_failed(ok, failed, t), True)
+            text = S.done_failed(ok, failed, t)
             self._show_list_button("failures")
         elif b["no_plugin"]:
             fmt = next(iter(self._plan.missing_plugin), PresetFormat.SERUM2)
-            self._set_status(S.done_filtered(ok, b["no_plugin"], S.synth_word(fmt.value), t))
+            text = S.done_filtered(ok, b["no_plugin"], S.synth_word(fmt.value), t)
         else:
-            self._set_status(S.done_clean(ok, t))
-        self.log.note(self.status.full_text(), bool(aborted or failed))
+            text = S.done_clean(ok, t)
+        if b["silent"]:
+            text += S.SEP + S.silent(b["silent"])
+        self._set_status(text, bool(aborted or failed or b["silent"]))
+        self.log.note(text, bool(aborted or failed))
 
     def _on_failed(self, message: str) -> None:
         b = self._batch

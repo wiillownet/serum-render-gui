@@ -60,6 +60,17 @@ def interpreter() -> str:
     return BUNDLED_INTERPRETER
 
 
+# serum-render reports each render's peak. Below this the file is silence for
+# any practical purpose (-80 dBFS); the engine's own warning threshold is lower.
+SILENT_PEAK = 1e-4
+
+
+def is_silent(ev: dict) -> bool:
+    """True for an ok result whose render never rose above SILENT_PEAK."""
+    peak = ev.get("peak")
+    return peak is not None and peak < SILENT_PEAK
+
+
 def parse_event(line: str) -> dict | None:
     """One NDJSON line to an event, or None if it is not one.
 

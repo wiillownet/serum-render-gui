@@ -44,6 +44,7 @@ from . import strings as S
 from . import style
 from .planner import scan
 from .profiles import ProfileStore
+from .runner import is_silent
 from .widgets import (
     ElidingLabel,
     PathField,
@@ -739,7 +740,9 @@ class LogWindow(QWidget):
         path = Path(str(ev.get("path", ""))).name
         t0 = self._started.pop(str(ev.get("path", "")), None)
         took = f"  {time.monotonic() - t0:.1f}s" if t0 is not None else ""
-        if status == "ok":
+        if status == "ok" and is_silent(ev):
+            self._add(f"silent   {path}{took}", style.WARNING)
+        elif status == "ok":
             self._add(f"ok       {path}{took}", style.TEXT_DIM)
         elif status == "error":
             self._add(f"error    {path}{took}  {ev.get('error', '')}", style.WARNING)

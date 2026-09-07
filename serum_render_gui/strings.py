@@ -214,6 +214,10 @@ def elapsed(seconds: float) -> str:
     return f"{s // 60}m {s % 60:02d}s" if s >= 60 else f"{s}s"
 
 
+def silent(n: int) -> str:
+    return f"{n} silent"
+
+
 def done_clean(n: int, t: str) -> str:
     return f"{n} rendered{SEP}{t}"
 

@@ -103,3 +103,11 @@ def test_reaper_kills_a_render_group(monkeypatch):
 
     assert reap_orphan(1234, 1234) is True
     assert killed == [1234]
+
+
+def test_silence_is_judged_from_the_reported_peak():
+    from serum_render_gui.runner import is_silent
+    assert is_silent({"status": "ok", "peak": 0.0})
+    assert is_silent({"status": "ok", "peak": 5e-5})
+    assert not is_silent({"status": "ok", "peak": 0.01})
+    assert not is_silent({"status": "ok"})  # older serum-render: no peak, no claim

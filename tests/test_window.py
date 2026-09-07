@@ -203,7 +203,7 @@ def test_formats_come_from_serum_render_and_gate_bit_depth(app, win):
 def test_done_with_aborted_reads_as_executor_broken(app, win):
     import time
 
-    win._batch = {"params": win.params(), "total": 10, "ok": 3, "failed": 0, "no_plugin": 0,
+    win._batch = {"params": win.params(), "total": 10, "ok": 3, "failed": 0, "no_plugin": 0, "silent": 0,
                   "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
                   "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
     win._lock(True)
@@ -218,23 +218,25 @@ def test_log_window_records_the_batch(app, win):
     import time
 
     win.log.batch_started(["serum-render", "a", "b"], 3)
-    win._batch = {"params": win.params(), "total": 3, "ok": 0, "failed": 0, "no_plugin": 0,
+    win._batch = {"params": win.params(), "total": 3, "ok": 0, "failed": 0, "no_plugin": 0, "silent": 0,
                   "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
                   "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
     win.runner.job_started.emit({"path": "/x/Bass/one.fxp"})
-    win._on_result({"status": "ok", "path": "/x/Bass/one.fxp"})
+    win._on_result({"status": "ok", "path": "/x/Bass/one.fxp", "peak": 0.4})
+    win._on_result({"status": "ok", "path": "/x/Bass/quiet.fxp", "peak": 0.0})
     win._on_result({"status": "error", "path": "/x/two.fxp", "error": "boom"})
     win._on_result({"status": "skipped", "path": "/x/three.fxp", "reason": "exists"})
     win.runner.stderr_line.emit("some warning")
-    win._on_done({"ok": 1, "failed": 1, "elapsed": 2.0})
+    win._on_done({"ok": 2, "failed": 1, "elapsed": 2.0})
     text = win.log.text()
+    assert "silent   quiet.fxp" in text
     assert "serum-render a b" in text and "3 to render" in text
     assert "started  one.fxp" in text
     assert re.search(r"ok       one\.fxp  \d+\.\ds", text)  # paired with its start
     assert "error    two.fxp  boom" in text  # no start seen: no duration
     assert "skipped  three.fxp  exists" in text
     assert "stderr   some warning" in text
-    assert text.rstrip().endswith("1 rendered · 1 failed · 2s")
+    assert text.rstrip().endswith("2 rendered · 1 failed · 2s · 1 silent")
     win._show_log()
     assert win.log.isVisible()
     win.log.close()
