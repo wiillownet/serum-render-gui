@@ -1,6 +1,6 @@
 """Every user-facing string, in one place. Wording is from
-docs/design/copy-sweep.md; rows the sweep left unsettled are marked
-PROVISIONAL so they can be found and replaced without touching widget code.
+docs/design/copy-sweep.md; rows the sweep left unsettled were settled in the
+2026-09-07 copy pass (docs/decisions.md).
 
 The separator is a middot everywhere, matching the approved tooltips.
 """
@@ -29,7 +29,7 @@ FILENAME_TOKENS = ("{preset}", "{folder}", "{subpath}", "{subdir}", "{format}", 
 
 
 def filename_tooltip(example: str) -> str:
-    """PROVISIONAL wording, settled mechanism: token list plus a live example."""
+    """Token list plus a live example that resolves as the template is typed."""
     chips = "".join(
         f'<span style="font-family:\'IBM Plex Mono\',Menlo,monospace;color:#A6E04D;'
         f'background:#111214;border:1px solid #2C2F36;padding:0 5px;">{t}</span> '
@@ -68,19 +68,18 @@ def setup_subtitle(serum1: bool, serum2: bool, presets: bool, output: bool) -> s
     if not presets:
         return "Presets folder not found. Point it at your library."
     if serum1 and not serum2:
-        return "Serum 2 not found — leave empty if you don't own it."
+        return "Serum 2 not found · leave empty if you don't own it"
     if not serum1 and serum2:
-        return "Serum 1 not found — leave empty if you don't own it."  # PROVISIONAL, mirror of the Serum 2 line
+        return "Serum 1 not found · leave empty if you don't own it"
     return "Paths detected." if output else "Paths detected. Choose an output folder."
 
 
 def setup_footer_wrong_extension(row_label: str, expected: str) -> str:
-    """PROVISIONAL: the sweep says name the row and the expected extension."""
     return f"{row_label} expects a {expected} bundle"
 
 
 FOOTER_OUTPUT_MISSING = "Output folder not set"
-OUTPUT_NOT_A_FOLDER = "Output path is a file, not a folder"  # PROVISIONAL
+OUTPUT_NOT_A_FOLDER = "Output path is a file · choose a folder"
 FOOTER_NOTHING_SET = "Nothing set yet"
 
 
@@ -103,7 +102,7 @@ LABEL_VELOCITY = "Velocity"
 LABEL_DURATION = "Duration"
 LABEL_TAIL = "Tail"
 LABEL_MIDI = "MIDI file"
-MIDI_EMPTY = "None — single note"
+MIDI_EMPTY = "None · single note"
 LABEL_SAMPLE_RATE = "Sample rate"
 LABEL_BIT_DEPTH = "Bit depth"
 LABEL_FORMAT = "Format"
@@ -117,15 +116,23 @@ MANAGE_PROFILES = "Manage profiles…"
 PREFERENCES = "Preferences…"
 LOG = "Log"
 SAVE_AS = "Save…"
-LOG_EMPTY = "Nothing rendered yet. Each batch logs its command, every result, and stderr here."  # PROVISIONAL
+LOG_EMPTY = "Nothing logged yet. Each batch adds its command, every preset as it starts and finishes, and stderr."
 
 
 def revert_tooltip(profile: str | None) -> str:
-    """PROVISIONAL: the design's wording quoted a built-in that no longer exists."""
-    return f'Revert to "{profile}"' if profile else "Nothing to revert to"
+    return f'Revert all to "{profile}"' if profile else "Revert all changes"
 
 
-SAVE_TOOLTIP = "Save as profile…"  # PROVISIONAL
+def revert_field_tooltip(value) -> str:
+    """The per-field button names the value it goes back to."""
+    if isinstance(value, bool):
+        value = "on" if value else "off"
+    elif value is None:
+        value = "none"
+    return f"Revert to {value}"
+
+
+SAVE_TOOLTIP = "Save as profile…"
 
 
 def secs(x: float) -> str:
@@ -181,7 +188,7 @@ def all_exist(n: int) -> str:
     return f"Nothing to render{SEP}all {n} already exist"
 
 
-NO_PRESETS = "No presets found"  # PROVISIONAL: not in the sweep
+NO_PRESETS = "No presets in this folder"
 
 # ---- Footer, during and after ---------------------------------------------
 
@@ -252,7 +259,7 @@ RENAME = "Rename"
 OVERWRITE = "Overwrite"
 DELETE = "Delete"
 SAVE = "Save"
-DISCARD = "Discard"  # PROVISIONAL
+DISCARD = "Discard"
 
 
 def retry_n(n: int) -> str:
@@ -273,7 +280,7 @@ def failures_hint(n: int) -> str:
 
 FAILURES_HINT_CHANGED = (
     "Settings have changed since this batch. Retry still uses the settings the "
-    "batch ran with — press Render to use the current ones."
+    "batch ran with. Press Render to use the current ones."
 )
 
 
@@ -282,15 +289,17 @@ def executor_hint(n: int) -> str:
 
 
 def executor_row(n: int) -> str:
-    return f"{n} presets abandoned"  # PROVISIONAL
+    return f"{n} presets abandoned"
 
 
 def collisions_title(n: int) -> str:
     return f"{n} filename collisions"
 
 
-COLLISIONS_HINT = (  # PROVISIONAL: replaces the stale "{subpath}" hint
-    "Two presets cannot share one file. The default Filename {subdir}/{preset} keeps them apart."
+COLLISIONS_HINT = (
+    "Two presets cannot write the same file. The default Filename {subdir}/{preset} keeps "
+    "folders apart; Separate folders per synth keeps a Serum 1 and a Serum 2 preset with "
+    "the same name apart."
 )
 COL_FILE = "File"
 COL_CLAIMED_BY = "Claimed by"
@@ -316,11 +325,11 @@ def confirm_overwrite(name: str) -> str:
     return f'"{name}" already exists. Overwrite it?'
 
 
-SAVE_PROFILE_TITLE = "Save profile"  # PROVISIONAL
+SAVE_PROFILE_TITLE = "Save profile"
 LABEL_NAME = "Name"
-UNSAVED_TITLE = "Unsaved changes"  # PROVISIONAL
+UNSAVED_TITLE = "Unsaved changes"
 
 
-def unsaved_body(name: str | None) -> str:  # PROVISIONAL
-    what = f'the changes to "{name}"' if name else "the current settings"
-    return f"Switching profiles discards {what}."
+def unsaved_body(name: str | None) -> str:
+    what = f'your changes to "{name}"' if name else "the current settings"
+    return f"Switching profiles discards {what}. Save them as a profile first to keep them."

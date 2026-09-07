@@ -153,3 +153,11 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Reason:** the log is for advanced users asking "what is it doing right now"; a start line per submitted preset answers that without inventing a worker number the parent cannot know. The skip-existing check runs in the worker, so every exists-skip gets a start line; hiding the result would leave a started preset that never finishes, which reads as a hang. Pairing start to result by exact path was verified on a live 3-preset batch and a resume.
 
 **Alternatives considered:** a per-worker slot index (honest only under `--deterministic`, approximate on the warm pool: rejected). Suppressing start lines for presets that turn out to be exists-skips (cannot be known at start time).
+
+## [2026-09-07] Provisional copy settled
+
+**Decision:** every string the copy sweep left flagged is now final, and the separator is a middot everywhere (the three em-dash strings were converted). Per-field revert buttons name the value they go back to ("Revert to 48"); the profile-level button says `Revert all to "{name}"`. Footer: "No presets in this folder", "Output path is a file · choose a folder". Collisions hint names both remedies (default template, Separate folders per synth) because a Serum 1 and Serum 2 preset with the same stem collide even under the default template. Unsaved-changes body tells the user how to keep the changes. Log placeholder describes what the log will contain.
+
+**Reason:** the design's revert tooltip named the value and the profile ("Reset to 1.5s from Quick preview"); the profile is gone but naming the value was the useful half, and the baseline is already in hand. The middot was the approved separator for tooltips and the footer, and CORRECTIONS.md asked for one glyph everywhere. Verified: 68 tests, collisions and unsaved dialogs screenshotted at their new heights (560x236, 440x176).
+
+**Alternatives considered:** per-field "Revert" with no value (less useful, same cost). Keeping em dashes in the three sentence-style strings (two conventions to maintain).

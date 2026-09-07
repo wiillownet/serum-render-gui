@@ -15,7 +15,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QSettings  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from serum_render_gui import style  # noqa: E402
+from serum_render_gui import style, strings as S  # noqa: E402
 from serum_render_gui.main import MainWindow  # noqa: E402
 from serum_render_gui.profiles import ProfileStore  # noqa: E402
 
@@ -165,7 +165,7 @@ def test_output_path_that_is_a_file_blocks_render(app, win, tmp_path):
     f.write_bytes(b"")
     win.output.set_path(str(f))
     assert not win.primary.isEnabled()
-    assert "not a folder" in win.status.full_text()
+    assert S.OUTPUT_NOT_A_FOLDER == win.status.full_text()
 
 
 def test_tilde_in_a_typed_path_is_expanded(app, win):
@@ -238,3 +238,13 @@ def test_log_window_records_the_batch(app, win):
     win._show_log()
     assert win.log.isVisible()
     win.log.close()
+
+
+def test_field_revert_tooltip_names_the_saved_value(app, win):
+    win.spins["note"].setValue(60)
+    win.spins["duration"].setValue(2.0)
+    app.processEvents()
+    assert win.reverts["note"].toolTip() == "Revert to 48"
+    assert win.reverts["duration"].toolTip() == "Revert to 1.0"
+    assert win.reverts["tail"].toolTip() == ""
+    assert win.revert_btn.toolTip() == 'Revert all to "Default"'

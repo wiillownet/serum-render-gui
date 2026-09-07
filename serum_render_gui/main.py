@@ -534,7 +534,7 @@ class MainWindow(QMainWindow):
             sec.set_modified(any(modified[k] for k in SECTION_KEYS[key]))
         for k, btn in self.reverts.items():
             btn.setIcon(_revert_icon(modified[k]))
-            btn.setToolTip(S.revert_tooltip(self._profile) if modified[k] else "")
+            btn.setToolTip(S.revert_field_tooltip(self._baseline[k]) if modified[k] else "")
         self.revert_btn.setIcon(_revert_icon(any_mod))
         self.revert_btn.setEnabled(any_mod)
         self.revert_btn.setToolTip(S.revert_tooltip(self._profile))
