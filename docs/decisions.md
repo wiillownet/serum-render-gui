@@ -161,3 +161,11 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Reason:** the design's revert tooltip named the value and the profile ("Reset to 1.5s from Quick preview"); the profile is gone but naming the value was the useful half, and the baseline is already in hand. The middot was the approved separator for tooltips and the footer, and CORRECTIONS.md asked for one glyph everywhere. Verified: 68 tests, collisions and unsaved dialogs screenshotted at their new heights (560x236, 440x176).
 
 **Alternatives considered:** per-field "Revert" with no value (less useful, same cost). Keeping em dashes in the three sentence-style strings (two conventions to maintain).
+
+## [2026-09-07] Ship as a .app around an embedded Python, nothing frozen
+
+**Decision:** `packaging/build-macos.sh` builds `dist/Serum Render.app` from a pinned python-build-standalone interpreter with this package and serum-render pip-installed into it. The launcher is a shell script that execs that `python3 -m serum_render_gui`. Fonts (IBM Plex Sans variable, Plex Mono Regular and Medium, OFL) and the app icon ship inside the package and are registered at startup. PySide6 is pruned to QtCore, QtGui, QtWidgets, QtSvg and QtDBus plus the cocoa, offscreen, svg and macstyle plugins. Unsigned for now; `SIGN_IDENTITY` runs codesign, and the notarization steps are in the script header.
+
+**Reason:** the 2026-09-05 rule that a frozen GUI must never host the render workers is moot when nothing is frozen: `sys.executable` is a real interpreter, so loky's spawn and `-m serum_render` work unchanged and `BUNDLED_INTERPRETER` stays unused. One interpreter, one build script, no PyInstaller hooks. Verified: the bundle renders three presets end to end through the GUI's own runner, `open` launches it under the name "Serum Render" with the bundle id, and it quits clean. The prune list comes from `otool -L` on the kept modules and plugins, not from guessing. 572MB before pruning, 338MB after; what remains is dawdreamer at 131MB and Qt at 100MB.
+
+**Alternatives considered:** PyInstaller plus a second embedded interpreter for the renderer (two Pythons, no benefit). pipx only (kept as the developer path in the README, not the user-facing one).

@@ -10,9 +10,23 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PySide6.QtGui import QFont, QGuiApplication
+from PySide6.QtGui import QFontDatabase, QFont, QGuiApplication
 
 _ICONS = Path(__file__).parent / "icons"
+_FONTS = Path(__file__).parent / "fonts"
+APP_ICON = _ICONS / "app.png"
+
+
+def load_fonts() -> list[str]:
+    """Register the bundled IBM Plex faces so the app looks the same on a
+    machine without them installed. Returns the family names registered."""
+    families: list[str] = []
+    for ttf in sorted(_FONTS.glob("*.ttf")):
+        fid = QFontDatabase.addApplicationFont(str(ttf))
+        if fid < 0:
+            raise RuntimeError(f"Could not load bundled font {ttf.name}")
+        families += QFontDatabase.applicationFontFamilies(fid)
+    return families
 
 # Palette. `stepper` and `off_line` are both #23262B on purpose.
 ACCENT = "#A6E04D"

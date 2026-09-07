@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QColor, QDesktopServices
+from PySide6.QtGui import QIcon, QAction, QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -990,6 +990,8 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("serum-render-gui")
     app.setOrganizationName("wiillownet")
+    app.setWindowIcon(QIcon(str(style.APP_ICON)))
+    style.load_fonts()
     app.setStyleSheet(style.QSS)
     app.setFont(style.sans(11.5))
     settings = QSettings()

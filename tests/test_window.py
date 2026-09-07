@@ -248,3 +248,9 @@ def test_field_revert_tooltip_names_the_saved_value(app, win):
     assert win.reverts["duration"].toolTip() == "Revert to 1.0"
     assert win.reverts["tail"].toolTip() == ""
     assert win.revert_btn.toolTip() == 'Revert all to "Default"'
+
+
+def test_bundled_fonts_register(app):
+    families = style.load_fonts()
+    assert "IBM Plex Sans" in families and "IBM Plex Mono" in families
+    assert style.APP_ICON.is_file()

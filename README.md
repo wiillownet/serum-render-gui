@@ -35,6 +35,20 @@ and a length, press Render.
 
 ## Install
 
+**macOS app:** download `Serum Render.app` from the latest release, or build it
+yourself:
+
+```bash
+sh packaging/build-macos.sh
+open "dist/Serum Render.app"
+```
+
+The build downloads a standalone Python, installs this package and
+serum-render into it and wraps the result in an app bundle. Nothing is frozen.
+The app is not signed yet, so the first launch is right-click > Open.
+
+**From source, any platform:**
+
 ```bash
 python -m venv .venv
 .venv/bin/pip install -e .
