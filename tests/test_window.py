@@ -3,6 +3,8 @@ since the offscreen platform draws a menu bar cocoa does not), the lock set,
 and the footer's pre-batch wording against a small library."""
 from __future__ import annotations
 
+import re
+
 import os
 from pathlib import Path
 
@@ -219,6 +221,7 @@ def test_log_window_records_the_batch(app, win):
     win._batch = {"params": win.params(), "total": 3, "ok": 0, "failed": 0, "no_plugin": 0,
                   "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
                   "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
+    win.runner.job_started.emit({"path": "/x/Bass/one.fxp"})
     win._on_result({"status": "ok", "path": "/x/Bass/one.fxp"})
     win._on_result({"status": "error", "path": "/x/two.fxp", "error": "boom"})
     win._on_result({"status": "skipped", "path": "/x/three.fxp", "reason": "exists"})
@@ -226,9 +229,10 @@ def test_log_window_records_the_batch(app, win):
     win._on_done({"ok": 1, "failed": 1, "elapsed": 2.0})
     text = win.log.text()
     assert "serum-render a b" in text and "3 to render" in text
-    assert "ok       one.fxp" in text
-    assert "error    two.fxp  boom" in text
-    assert "three.fxp" not in text  # exists-skips are not this batch's work
+    assert "started  one.fxp" in text
+    assert re.search(r"ok       one\.fxp  \d+\.\ds", text)  # paired with its start
+    assert "error    two.fxp  boom" in text  # no start seen: no duration
+    assert "skipped  three.fxp  exists" in text
     assert "stderr   some warning" in text
     assert text.rstrip().endswith("1 rendered · 1 failed · 2s")
     win._show_log()

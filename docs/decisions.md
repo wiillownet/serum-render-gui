@@ -145,3 +145,11 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Decision:** serum-render and serum2-preset-loader follow Semantic Versioning. A fix or a performance change with no observable difference is a patch. A new flag, output format, `--json` event, or changed default is a minor. Before 1.0 a minor may also break; `--json` and the flag set freeze at 1.0. This GUI pins `serum-render>=X.Y,<X.(Y+1)` and moves the pin deliberately with each serum-render minor.
 
 **Reason:** the GUI mirrors serum-render's flags and formats in its own tables, so any minor of serum-render can require a GUI change; a pin to one minor makes that a resolver error rather than a silent mismatch. Concretely: the OGG/FLAC formats make serum-render 0.4.0, not 0.3.2, and this GUI moves to `>=0.4,<0.5` in the same change that adds the formats to its combo. The loader's base64 rewrite changed no bytes and no API, so it is 0.1.3.
+
+## [2026-09-07] Log window shows in-flight presets, and exists-skips with them
+
+**Decision:** serum-render 0.5.0's `job_start` event becomes a faint `started  <name>` line, and each result line gets the seconds since its start. Exists-skips on a resume are now logged too (`skipped  <name>  exists`), reversing the 0.4.0 choice to hide them.
+
+**Reason:** the log is for advanced users asking "what is it doing right now"; a start line per submitted preset answers that without inventing a worker number the parent cannot know. The skip-existing check runs in the worker, so every exists-skip gets a start line; hiding the result would leave a started preset that never finishes, which reads as a hang. Pairing start to result by exact path was verified on a live 3-preset batch and a resume.
+
+**Alternatives considered:** a per-worker slot index (honest only under `--deterministic`, approximate on the warm pool: rejected). Suppressing start lines for presets that turn out to be exists-skips (cannot be known at start time).

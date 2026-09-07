@@ -146,6 +146,7 @@ class MainWindow(QMainWindow):
         self.runner.stopped.connect(self._on_stopped)
         self.log = LogWindow(self, settings)
         self.runner.stderr_line.connect(self.log.stderr)
+        self.runner.job_started.connect(self.log.started)
 
         self._load_settings()
         self._reap_orphan()
@@ -728,7 +729,8 @@ class MainWindow(QMainWindow):
             self.log.result(ev)
             return
         else:
-            return  # reason "exists": not part of this batch's denominator
+            self.log.result(ev)  # "exists": logged because its start line already is
+            return
         self.log.result(ev)
         done = b["ok"] + b["failed"]
         now = time.monotonic()

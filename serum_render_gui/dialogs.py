@@ -676,6 +676,7 @@ class LogWindow(QWidget):
         self.setWindowTitle(S.LOG)
         self._settings = settings
         self._lines: list[str] = []
+        self._started: dict[str, float] = {}
         vbox = QVBoxLayout(self)
         vbox.setContentsMargins(16, 14, 16, 14)
         vbox.setSpacing(10)
@@ -723,18 +724,25 @@ class LogWindow(QWidget):
         )
 
     def batch_started(self, command: list[str], total: int) -> None:
+        self._started.clear()
         if self._lines:
             self._add("", style.TEXT_FAINT)
         self._add(" ".join(command), style.TEXT)
         self._add(f"{total} to render", style.TEXT_DIM)
 
+    def started(self, ev: dict) -> None:
+        self._started[str(ev.get("path", ""))] = time.monotonic()
+        self._add(f"started  {Path(str(ev.get('path', ''))).name}", style.TEXT_FAINT)
+
     def result(self, ev: dict) -> None:
         status = ev.get("status", "?")
         path = Path(str(ev.get("path", ""))).name
+        t0 = self._started.pop(str(ev.get("path", "")), None)
+        took = f"  {time.monotonic() - t0:.1f}s" if t0 is not None else ""
         if status == "ok":
-            self._add(f"ok       {path}", style.TEXT_DIM)
+            self._add(f"ok       {path}{took}", style.TEXT_DIM)
         elif status == "error":
-            self._add(f"error    {path}  {ev.get('error', '')}", style.WARNING)
+            self._add(f"error    {path}{took}  {ev.get('error', '')}", style.WARNING)
         else:
             self._add(f"skipped  {path}  {ev.get('reason', '')}", style.TEXT_FAINT)
 

@@ -19,6 +19,7 @@ from serum_render_gui.runner import (
 def test_parses_each_event_kind():
     assert parse_event('{"event":"start","schema":1,"total":9,"workers":7}')["total"] == 9
     assert parse_event('{"event":"result","status":"ok","path":"/a.fxp"}')["status"] == "ok"
+    assert parse_event('{"event":"job_start","path":"/a.fxp"}')["path"] == "/a.fxp"
     assert parse_event('{"event":"done","ok":9,"skipped":0,"failed":0}')["ok"] == 9
 
 

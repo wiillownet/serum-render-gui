@@ -92,6 +92,7 @@ class RenderRunner(QObject):
     # The child's pid and process-group id, once known. The GUI records them
     # so a later launch can reap a tree orphaned by a force-quit.
     launched = Signal(int, int)  # pid, pgid
+    job_started = Signal(dict)  # {"path"}: a worker took this preset (serum-render >= 0.5)
     result = Signal(dict)
     done = Signal(dict)
     failed = Signal(str)
@@ -191,6 +192,8 @@ class RenderRunner(QObject):
             kind = event["event"]
             if kind == "start":
                 self.started.emit(event.get("total", 0), event.get("workers", 0))
+            elif kind == "job_start":
+                self.job_started.emit(event)
             elif kind == "result":
                 self.result.emit(event)
             elif kind == "done":
