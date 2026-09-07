@@ -1,53 +1,39 @@
 <p align="center">
-  <img src="assets/banner.png" alt="serum-render-gui" width="800">
+  <img src="assets/banner.png" alt="serum-render-gui">
 </p>
 
 Desktop front end for [serum-render](https://github.com/wiillownet/serum-render):
-batch-render Serum 1 (`.fxp`) and Serum 2 (`.SerumPreset`) presets to audio
-without retyping a 25-flag command. Point it at a preset library, pick a note
-and a length, press Render.
+batch-render Serum 1 (`.fxp`) and Serum 2 (`.SerumPreset`) presets to audio.
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="The main window: profile, folders, sound, audio and files sections, with the render footer" width="640">
+  <img src="assets/screenshot.png" alt="Main window" width="640">
 </p>
 
-## What it does
+## Features
 
-- **Plans as you type.** Preset counts, which synth each needs, how many
-  outputs already exist and any filename collisions update on every change,
-  before anything renders.
-- **Resumes and retries.** Skip existing files to pick a stopped batch back up.
-  Failures get their own list and a Retry that re-runs exactly the settings
-  the batch used.
-- **Profiles.** Save a set of sound, audio and filename settings under a name.
-  Modified fields show what they will revert to.
-- **WAV, FLAC, OGG Vorbis or NPY**, 16, 24 or 32-bit float where the format
-  allows it, any sample rate, single note or a MIDI file.
-- **Filename templates** with `{preset}`, `{subdir}`, `{folder}`, `{format}`,
-  `{note}` and `{velocity}`, previewed live.
-- **A log window** (View > Log) for the launch command, every preset as it
-  starts and finishes, and the renderer's stderr.
+- Counts presets, checks which synth each needs and flags filename collisions
+  before rendering.
+- Skip existing files resumes a stopped batch. Failed presets can be retried
+  with the settings the batch used.
+- Profiles save sound, audio and filename settings under a name.
+- WAV, FLAC, OGG Vorbis or NPY output. Single note or a MIDI file.
+- Filename templates with `{preset}`, `{subdir}`, `{folder}`, `{format}`,
+  `{note}` and `{velocity}`.
+- Log window (View > Log): launch command, each preset as it starts and
+  finishes, stderr.
 
 ## Requirements
 
 - macOS, Windows or Linux with Python 3.11 or 3.12
-- Serum 1 and/or Serum 2 installed
+- Serum 1 and/or Serum 2
 
 ## Install
 
-**macOS app:** download `Serum Render.app` from the latest release, or build it
-yourself:
+**macOS app:** download `Serum Render` from the
+[latest release](https://github.com/wiillownet/serum-render-gui/releases/latest).
+It is not signed yet, so the first launch is right-click > Open.
 
-```bash
-sh packaging/build-macos.sh
-open "dist/Serum Render.app"
-```
-
-The build downloads a standalone Python, installs this package and
-serum-render into it and wraps the result in an app bundle. Nothing is frozen.
-The app is not signed yet, so the first launch is right-click > Open.
-
-**From source, any platform:**
+**From source:**
 
 ```bash
 python -m venv .venv
@@ -55,18 +41,24 @@ python -m venv .venv
 .venv/bin/serum-render-gui
 ```
 
-On first launch the setup sheet detects the plugins and the Xfer preset
-folder; confirm them and choose an output folder.
+**Build the app yourself:**
+
+```bash
+sh packaging/build-macos.sh
+```
+
+This downloads a standalone Python, installs the package into it and wraps
+the result in `dist/Serum Render.app`.
+
+First launch opens a setup sheet that detects the plugins and the Xfer preset
+folder. Confirm them and choose an output folder.
 
 ## How it works
 
-The GUI never renders in its own process. Rendering runs as
-`python -m serum_render ... --json` in a child process group, and its NDJSON
-event stream drives the progress bar, the failure list and the log.
-
-Planning stays in-process: discovery, counting and collision detection re-run
-continuously as you type, which a subprocess per keystroke could not do. That
-path imports only serum-render's discovery layer and never loads a plugin.
+Rendering runs as `python -m serum_render ... --json` in a child process. Its
+NDJSON event stream drives the progress bar, the failure list and the log.
+Planning (discovery, counting, collision detection) runs in-process on every
+change and never loads a plugin.
 
 ## Development
 
@@ -74,7 +66,7 @@ path imports only serum-render's discovery layer and never loads a plugin.
 .venv/bin/pytest tests/ -q
 ```
 
-Tests run against Qt's offscreen platform and need no plugins.
+Tests use Qt's offscreen platform and need no plugins.
 
 ## Licence
 
