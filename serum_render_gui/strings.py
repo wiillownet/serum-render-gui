@@ -19,8 +19,8 @@ TOOLTIPS = {
     "tail": "Silence after note-off · default 0.5",
     "midi": "Render a .mid sequence instead of one note · disables Note and Velocity",
     "sample_rate": "Output sample rate · default 44100",
-    "bit_depth": "16, 24, or 32-bit float · default 16 · ignored for NPY",
-    "format": "WAV, or NPY raw float32 arrays · default WAV",
+    "bit_depth": "16, 24, or 32-bit float · default 16 · FLAC takes 16 or 24 · ignored for OGG and NPY",  # updated for 0.4.0
+    "format": "WAV, FLAC, OGG (Vorbis), or NPY raw float32 arrays · default WAV",  # updated for 0.4.0
     "deterministic": "Fresh process per preset, bit-reproducible · much slower · default off",
     "no_recurse": "Skip subfolders · default off",
 }
@@ -136,7 +136,10 @@ def sound_summary(note_name: str, velocity: int, duration: float, tail: float,
     return f"{head}{SEP}{secs(duration)}s + {secs(tail)}s"
 
 
-def audio_summary(rate: int, depth: str, fmt: str) -> str:
+def audio_summary(rate: int, depth: str | None, fmt: str) -> str:
+    """`depth` is None when the format ignores it."""
+    if depth is None:
+        return f"{rate}{SEP}{fmt.upper()}"
     depth_word = "32-bit float" if depth == "32f" else f"{depth}-bit"
     return f"{rate}{SEP}{depth_word}{SEP}{fmt.upper()}"
 

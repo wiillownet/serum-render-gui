@@ -24,7 +24,7 @@ dependencies = [
     # Upper bound is load-bearing. serum-render's --json shape is unstable
     # until 1.0, so an unbounded floor lets an upgrade break the GUI with no
     # resolver signal.
-    "serum-render>=0.3.1,<0.4",
+    "serum-render>=0.4,<0.5",
 ]
 
 [project.urls]

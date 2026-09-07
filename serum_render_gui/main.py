@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 
 from serum_render.config import plugin_path_looks_valid
 from serum_render.formats import PresetFormat
+from serum_render.output import FORMATS
 
 from . import strings as S
 from . import style
@@ -58,7 +59,7 @@ from .widgets import (
 _NOTE_NAMES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 _SAMPLE_RATES = ["44100", "48000", "88200", "96000"]
 _BIT_DEPTHS = ["16", "24", "32f"]
-_FORMATS = ["WAV", "NPY"]
+_FORMATS = [name.upper() for name in FORMATS]  # wav, flac, ogg, npy
 _FORMAT_PREFIX = "{format}/"
 _EXAMPLE_TOKENS = {"{preset}": "Deep_Sub_01", "{folder}": "Bass", "{subpath}": "Bass",
                    "{subdir}": "Bass", "{format}": "serum1"}
@@ -505,7 +506,7 @@ class MainWindow(QMainWindow):
             self.reverts[k].setEnabled(not midi_set)
             self.spin_rows[k].setToolTip(S.TOOLTIPS["midi"] if midi_set else S.TOOLTIPS[k])
         self.midi_clear.setVisible(midi_set)
-        self.bit_depth.setEnabled(self.fmt.currentText() != "NPY")
+        self._apply_bit_depth_rules()
         t = self.template.text()
         was = self._loading
         self._loading = True
@@ -536,7 +537,7 @@ class MainWindow(QMainWindow):
         midi_name = Path(self.midi.path()).name if midi_set else None
         self.sound.set_summary(S.sound_summary(
             note_name(v["note"]), v["velocity"], v["duration"], v["tail"], midi_name))
-        self.audio.set_summary(S.audio_summary(v["sample_rate"], v["bit_depth"], v["output_format"]))
+        self.audio.set_summary(S.audio_summary(v["sample_rate"], self._bit_depth_or_none(), v["output_format"]))
         self.files.set_summary(v["filename_template"])
         self.folders.set_summary(self.output.path())
 
@@ -545,6 +546,25 @@ class MainWindow(QMainWindow):
         self._plan = plan(self._library, p) if p else Plan()
         if self._batch is None:
             self._show_ready()
+
+    def _apply_bit_depth_rules(self) -> None:
+        """FLAC takes 16 or 24; OGG and NPY ignore bit depth. The rules come
+        from serum-render's table so a wrong combination is never built."""
+        subtypes = FORMATS[self.fmt.currentText().lower()].subtypes
+        self.bit_depth.setEnabled(subtypes is not None)
+        if subtypes is None:
+            return
+        model = self.bit_depth.model()
+        for i in range(self.bit_depth.count()):
+            allowed = self.bit_depth.itemText(i) in subtypes
+            item = model.item(i)
+            item.setEnabled(allowed)
+        if self.bit_depth.currentText() not in subtypes:
+            self.bit_depth.setCurrentText(next(iter(subtypes)))
+
+    def _bit_depth_or_none(self) -> str | None:
+        fmt = self.fmt.currentText().lower()
+        return self.bit_depth.currentText() if FORMATS[fmt].subtypes is not None else None
 
     def _example(self) -> str:
         stem = compose_fast(self.template.text(), _EXAMPLE_TOKENS,
@@ -730,10 +750,15 @@ class MainWindow(QMainWindow):
             return
         t = S.elapsed(ev.get("elapsed", time.monotonic() - b["t0"]))
         ok, failed = ev.get("ok", b["ok"]), ev.get("failed", b["failed"])
+        aborted = ev.get("aborted")  # 0.4.0: a worker died; the rest never ran
         self._end_batch()
         self._set_bar_visible(False)
         self.reveal_done.setVisible(True)
-        if failed:
+        if aborted:
+            b["broken"] = aborted
+            self._set_status(S.executor_broken(ok, b["total"] - ok - failed), True)
+            self._show_list_button("failures")
+        elif failed:
             self._set_status(S.done_failed(ok, failed, t), True)
             self._show_list_button("failures")
         elif b["no_plugin"]:

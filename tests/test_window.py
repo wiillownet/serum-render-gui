@@ -179,3 +179,34 @@ def test_locking_takes_focus_and_selection_off_the_fields(app, win):
     assert not spin.hasFocus()
     assert not spin.lineEdit().hasSelectedText()
     win._lock(False)
+
+
+def test_formats_come_from_serum_render_and_gate_bit_depth(app, win):
+    from serum_render.output import FORMATS
+
+    assert [t.lower() for t in [win.fmt.itemText(i) for i in range(win.fmt.count())]] == list(FORMATS)
+    win.bit_depth.setCurrentText("32f")
+    win.fmt.setCurrentText("FLAC")
+    assert win.bit_depth.isEnabled()
+    assert win.bit_depth.currentText() == "16"  # 32f is not a FLAC subtype
+    assert not win.bit_depth.model().item(2).isEnabled()
+    assert win.audio.summary.full_text() == "44100 · 16-bit · FLAC"
+    win.fmt.setCurrentText("OGG")
+    assert not win.bit_depth.isEnabled()
+    assert win.audio.summary.full_text() == "44100 · OGG"
+    assert win.files.summary.full_text() == "{subdir}/{preset}"
+    assert win._example().endswith(".ogg")
+
+
+def test_done_with_aborted_reads_as_executor_broken(app, win):
+    import time
+
+    win._batch = {"params": win.params(), "total": 10, "ok": 3, "failed": 0, "no_plugin": 0,
+                  "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
+                  "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
+    win._lock(True)
+    win._on_done({"ok": 3, "failed": 0, "skipped": 0, "elapsed": 5.0,
+                  "aborted": "TerminatedWorkerError: a worker died"})
+    assert win.status.full_text() == "3 rendered · 7 abandoned · executor broken"
+    assert win.list_btn.isVisible() and win.list_btn.text() == "Failures"
+    assert win._last["broken"].startswith("TerminatedWorkerError")

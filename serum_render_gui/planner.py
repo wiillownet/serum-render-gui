@@ -25,9 +25,12 @@ from serum_render.discover import (
     resolve_output_paths,
 )
 from serum_render.formats import PresetFormat, format_or_none
+from serum_render.output import FORMATS
 
-# Container -> the extension the CLI derives from it (cli.py's `extension`).
-_EXTENSION_FOR = {"wav": ".wav", "npy": ".npy"}
+# Container -> the extension the CLI writes. Read from serum-render's own
+# table so the two cannot disagree; output.py is stdlib-only at module level,
+# so this import keeps the GUI process free of dawdreamer.
+_EXTENSION_FOR = {name: fmt.extension for name, fmt in FORMATS.items()}
 
 
 @dataclass(frozen=True)
