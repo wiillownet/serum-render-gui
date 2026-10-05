@@ -177,3 +177,11 @@ With the default template that yields `{format}/{subdir}/{preset}` → `serum1/B
 **Reason:** 1.0 + 0.5 writes exactly 66150 frames, 1.500 s, which is Petri's default max length; verified that files at exactly 1.5 s still land on its map. WAV because Petri decodes everything to PCM for analysis and exports WAV itself, and a lossy format alters the transient and high-frequency detail its analysis measures. 16-bit because 24 changes nothing Petri reads.
 
 **Alternatives considered:** FLAC (same audio, half the size; a valid user choice, not the default). OGG (lossy, rejected for this use).
+
+## [2026-10-05] Silent renders get a notify-and-retry button, not a delete button
+
+**Decision:** a finished batch with silent-but-ok renders (peak flagged by `is_silent`) shows a "Silent" button next to Failures, same place, same table-dialog mechanism. Its Retry deletes only those outputs and re-renders them with whatever the window holds right now, not the settings the original batch used.
+
+**Reason:** the earlier plan was a delete button mirroring Retry's failure-cleanup. But a silent render is usually fixable, not just removable: a drum kit or Korg preset with nothing mapped at note 48 often has real sound at another note. Reusing the batch's own settings (like the Failures retry does) would reproduce the same silence; using the window's current settings makes "bump Note, click Retry" the actual workaround. Verified live on the two always-silent presets from the sweep: one became audible at note 60 (peak 0.28), the Korg M1 stayed silent and was correctly re-flagged.
+
+**Alternatives considered:** a Delete button (discussed earlier, shelved — destructive and doesn't use the information already in hand). Auto-retrying at several notes without asking (more automatic, but guesses at a note the user didn't choose and changes output silently).
