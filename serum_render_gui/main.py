@@ -642,7 +642,12 @@ class MainWindow(QMainWindow):
     def _show_list_button(self, kind: str | None) -> None:
         self._list_kind = kind
         self.list_btn.setVisible(kind is not None)
-        self.list_btn.setText(S.COLLISIONS if kind == "collisions" else S.FAILURES)
+        if kind == "collisions":
+            self.list_btn.setText(S.COLLISIONS)
+        elif kind == "silent":
+            self.list_btn.setText(S.SILENT_BUTTON)
+        else:
+            self.list_btn.setText(S.FAILURES)
 
     # ---- lifecycle -------------------------------------------------------------
 
@@ -659,7 +664,7 @@ class MainWindow(QMainWindow):
     def _launch(self, p: RenderParams, total: int, retry: bool) -> None:
         self._batch = {
             "params": p, "total": total, "ok": 0, "failed": 0, "no_plugin": 0, "silent": 0,
-            "failures": [], "t0": time.monotonic(), "first": None, "retry": retry,
+            "failures": [], "silent_files": [], "t0": time.monotonic(), "first": None, "retry": retry,
             "strangers": self._plan.existing, "skip_on": p.skip_existing,
             "output_for": dict(zip(self._plan.preset_paths, self._plan.output_paths)),
             "ended": False,
@@ -723,6 +728,7 @@ class MainWindow(QMainWindow):
             b["ok"] += 1
             if is_silent(ev):
                 b["silent"] += 1
+                b["silent_files"].append((ev.get("path", ""), ev.get("peak")))
         elif st == "error":
             b["failed"] += 1
             b["failures"].append((ev.get("path", ""), ev.get("error", "")))
@@ -780,6 +786,8 @@ class MainWindow(QMainWindow):
             text = S.done_filtered(ok, b["no_plugin"], S.synth_word(fmt.value), t)
         else:
             text = S.done_clean(ok, t)
+        if self._list_kind is None and b["silent"]:
+            self._show_list_button("silent")
         accent = S.SEP + S.silent(b["silent"]) if b["silent"] else ""
         self._set_status(text, bool(aborted or failed), accent)
         self.log.note(text + accent, bool(aborted or failed))
@@ -825,6 +833,15 @@ class MainWindow(QMainWindow):
                         rows, S.COLLISIONS_HINT, copy_text=text, col1_mono=True).exec()
             return
         b = self._last
+        if self._list_kind == "silent":
+            rows = [(Path(p).name, f"{peak:.4f}" if peak is not None else "", "")
+                    for p, peak in b["silent_files"]]
+            text = "\n".join(f"{p}\t{peak}" for p, peak in b["silent_files"])
+            dlg = TableDialog(self, S.silent_title(len(rows)), (S.COL_PRESET, S.COL_PEAK), rows,
+                              S.silent_hint(len(rows)), retry_count=len(rows), copy_text=text)
+            dlg.retry.connect(self._retry_silent)
+            dlg.exec()
+            return
         if b.get("broken"):
             abandoned = b["total"] - b["ok"] - b["failed"]
             rows = [(S.executor_row(abandoned), b["broken"].strip().splitlines()[-1], "amber")]
@@ -859,6 +876,25 @@ class MainWindow(QMainWindow):
                 Path(out).unlink()
         p = dataclasses.replace(b["params"], skip_existing=True)
         self._launch(p, len(b["failures"]), retry=True)
+        self._batch["output_for"] = b["output_for"]
+
+    def _retry_silent(self) -> None:
+        """Delete the silent presets' outputs, then re-render just those with
+        whatever the window holds now -- a changed Note is the point, unlike
+        _retry, which deliberately replays the original batch's settings."""
+        b = self._last
+        if self._batch is not None:
+            return
+        presets = [p for p, _peak in b["silent_files"]]
+        for preset in presets:
+            out = b["output_for"].get(preset)
+            if out and Path(out).exists():
+                Path(out).unlink()
+        p = self.params()
+        if p is None:
+            return
+        p = dataclasses.replace(p, skip_existing=True)
+        self._launch(p, len(presets), retry=True)
         self._batch["output_for"] = b["output_for"]
 
     def _show_log(self) -> None:

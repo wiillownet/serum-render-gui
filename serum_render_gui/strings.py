@@ -248,6 +248,7 @@ RENDER = "Render"
 STOP = "Stop"
 FAILURES = "Failures"
 COLLISIONS = "Collisions"
+SILENT_BUTTON = "Silent"
 
 
 def render_n(n: int) -> str:
@@ -310,6 +311,19 @@ COL_FILE = "File"
 COL_CLAIMED_BY = "Claimed by"
 COL_PRESET = "Preset"
 COL_ERROR = "Error"
+COL_PEAK = "Peak"
+
+
+def silent_title(n: int) -> str:
+    return f"{n} silent"
+
+
+def silent_hint(n: int) -> str:
+    return (
+        f"These {n} rendered with no audible sound, usually because nothing is mapped "
+        "at this note. Retry re-renders them with whatever Note and settings are in "
+        "the window now, not the ones this batch used."
+    )
 
 
 def more_rows(n: int) -> str:

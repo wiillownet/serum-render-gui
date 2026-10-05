@@ -204,7 +204,7 @@ def test_done_with_aborted_reads_as_executor_broken(app, win):
     import time
 
     win._batch = {"params": win.params(), "total": 10, "ok": 3, "failed": 0, "no_plugin": 0, "silent": 0,
-                  "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
+                  "failures": [], "silent_files": [], "t0": time.monotonic(), "first": None, "retry": False,
                   "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
     win._lock(True)
     win._on_done({"ok": 3, "failed": 0, "skipped": 0, "elapsed": 5.0,
@@ -219,7 +219,7 @@ def test_log_window_records_the_batch(app, win):
 
     win.log.batch_started(["serum-render", "a", "b"], 3)
     win._batch = {"params": win.params(), "total": 3, "ok": 0, "failed": 0, "no_plugin": 0, "silent": 0,
-                  "failures": [], "t0": time.monotonic(), "first": None, "retry": False,
+                  "failures": [], "silent_files": [], "t0": time.monotonic(), "first": None, "retry": False,
                   "strangers": 0, "skip_on": False, "output_for": {}, "ended": False}
     win.runner.job_started.emit({"path": "/x/Bass/one.fxp"})
     win._on_result({"status": "ok", "path": "/x/Bass/one.fxp", "peak": 0.4})
@@ -258,3 +258,34 @@ def test_bundled_fonts_register(app):
     families = style.load_fonts()
     assert "IBM Plex Sans" in families and "IBM Plex Mono" in families
     assert style.APP_ICON.is_file()
+
+
+def test_silent_renders_get_their_own_button_and_targeted_retry(app, win):
+    import time
+
+    out = Path(win._plan.output_paths[win._plan.preset_paths.index(
+        str((Path(win.presets.path()) / "Bass" / "a.fxp").resolve()))])
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(b"RIFF....")  # stands in for a previously-rendered silent file
+    preset = str((Path(win.presets.path()) / "Bass" / "a.fxp").resolve())
+
+    win._batch = {"params": win.params(), "total": 1, "ok": 0, "failed": 0, "no_plugin": 0,
+                  "silent": 0, "failures": [], "silent_files": [], "t0": time.monotonic(),
+                  "first": None, "retry": False, "strangers": 0, "skip_on": False,
+                  "output_for": {preset: str(out)}, "ended": False}
+    win._on_result({"status": "ok", "path": preset, "peak": 0.0})
+    win._on_done({"ok": 1, "failed": 0, "elapsed": 1.0})
+
+    assert win.list_btn.isVisible() and win.list_btn.text() == "Silent"
+    assert win.status.full_text().endswith("1 silent")
+
+    launched = []
+    win.runner.start = lambda p: launched.append(p)
+    win.spins["note"].setValue(60)  # the point of retrying: a different note
+    win._retry_silent()
+
+    assert not out.exists()  # the stale silent file is gone, or skip-existing would keep it
+    assert len(launched) == 1
+    assert launched[0].note == 60  # used the window's current params, not the batch's
+    assert launched[0].skip_existing is True
+    assert win._batch["total"] == 1
