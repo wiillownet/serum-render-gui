@@ -33,6 +33,14 @@ batch-render Serum 1 (`.fxp`) and Serum 2 (`.SerumPreset`) presets to audio.
 [latest release](https://github.com/wiillownet/serum-render-gui/releases/latest).
 It is not signed yet, so the first launch is right-click > Open.
 
+> **Known issue (0.1.1 app):** the 0.1.1 app bundles serum-render 0.5.0 with
+> serum2-preset-loader 0.1.3. That loader stamps every Serum 2 preset as
+> Serum 2.1.4, so presets saved by older Serum versions skip Serum's own
+> migration and some settings render differently from how Serum plays them.
+> Serum 1 renders are unaffected. Until a fixed app ships, render Serum 2
+> presets with the serum-render CLI (0.5.3 or later), or install from source
+> into a fresh venv, which resolves serum-render 0.5.3 and loader 0.4.
+
 **From source:**
 
 ```bash
