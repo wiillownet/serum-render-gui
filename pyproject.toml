@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "serum-render-gui"
-version = "0.1.1"
+version = "0.2.0"
 description = "Desktop front end for serum-render: batch-render Serum 1 and Serum 2 presets to audio."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -24,7 +24,7 @@ dependencies = [
     # Upper bound is load-bearing. serum-render's --json shape is unstable
     # until 1.0, so an unbounded floor lets an upgrade break the GUI with no
     # resolver signal.
-    "serum-render>=0.5,<0.6",
+    "serum-render>=0.6,<0.7",
 ]
 
 [project.urls]
